@@ -14,7 +14,7 @@ Status legend: ✅ **live** (exists now) · 🟡 **planned** (proposed; finalise
 | SQLite `app.db` | `/data/app.db` (volume `research_data`) | Application data: runs, papers, user settings | ✅ |
 | Milvus Lite `milvus.db` | `/data/milvus.db` (same volume) | Passage chunks + embeddings | ✅ (empty until Phase 5) |
 | SQLite `checkpoints.db` | `/data/checkpoints.db` | LangGraph checkpoints (workflow state per step) | 🟡 Phase 7 |
-| `config/config.toml` | bind-mounted `./config` | System hyperparameters | ✅ |
+| `settings/config.toml` | bind-mounted `./settings` | System hyperparameters | ✅ |
 | `.env` | host only | Secrets (API keys) | ✅ |
 | ~~LangSmith~~ | (not used) | Replaced by our own `trace_spans` + eval tables | — |
 

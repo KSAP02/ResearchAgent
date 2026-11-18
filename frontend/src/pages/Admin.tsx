@@ -13,7 +13,7 @@ function fmtMtime(mtime: string | null): string {
   }
 }
 
-/** System hyperparameters, two-way synced with config/config.toml. */
+/** System hyperparameters, two-way synced with settings/config.toml. */
 export default function Admin() {
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [draft, setDraft] = useState<Record<string, FieldValue>>({}); // "section.key" -> value

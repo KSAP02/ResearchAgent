@@ -6,6 +6,135 @@ what we actually observed in this project (run numbers refer to the Runs page).
 
 ---
 
+## How it all fits together (visual guide)
+
+Images live in `MD_files/images/` (SVG; they open in any browser and show in
+VS Code's Markdown preview). The Mermaid blocks render on GitHub; in VS Code
+install a Mermaid preview extension to see them as diagrams.
+
+### 1. The pipeline: graph nodes, the loop, shared state, storage
+
+![Research pipeline](images/pipeline_overview.svg)
+
+The same graph as a flowchart (this is literally what `graph/workflow.py` builds):
+
+```mermaid
+flowchart LR
+    S([START]) --> P[planner<br/><i>real: LLM</i>]
+    P --> R[researcher<br/><i>stub</i>]
+    R --> RT[retriever<br/><i>stub</i>]
+    RT --> A[analyst<br/><i>stub</i>]
+    A --> E{evidence_checker<br/>route_after_check}
+    E -- "insufficient &<br/>retry_count < max_retries" --> R
+    E -- "sufficient or cap hit" --> W[report<br/><i>stub</i>]
+    W --> X([END])
+    classDef real fill:#DDE3DC,stroke:#6F8572,stroke-width:2px;
+    classDef stub fill:#ECEBE7,stroke:#9A958D,stroke-dasharray:5 4;
+    class P real;
+    class R,RT,A,W stub;
+```
+
+How to read it:
+- **Boxes are nodes.** Each is a Python function `(state, config) -> partial update`.
+- **Arrows are edges.** Plain edges always go to the next node; the diamond is a
+  **conditional edge**: `route_after_check()` looks at the state and returns the
+  name of the next node.
+- **The arrow back to `researcher` is the cycle.** It's what a plain chain can't do.
+  `retry_count` and `max_retries` in the state stop it from looping forever.
+
+### 2. One request end to end
+
+![What happens when you press Run](images/request_flow.svg)
+
+1. The browser sends `POST /api/research {"question": ...}`.
+2. nginx (frontend container) forwards every `/api/*` request to the backend container.
+3. FastAPI creates the run row in SQLite **first** (`status=running`, config snapshot), so trace spans can point at it.
+4. FastAPI calls `graph.invoke(state, config={"callbacks": [TraceRecorder]})`.
+5. LangGraph runs the nodes: planner → researcher → retriever → analyst → evidence checker → (loop) → report.
+6. While that happens, every node/chain/LLM call fires callbacks; the recorder writes a `trace_spans` row on start and updates it on end.
+7. The graph returns the final state to FastAPI.
+8. FastAPI finishes the run row: status, duration, total tokens, estimated cost.
+9. The browser gets the JSON (plan, report, tokens, run id).
+10. "View trace" loads `GET /api/runs/{id}/trace`.
+11. The Runs page groups spans by `parent_span_id` and draws the tree.
+
+### 3. How the state grows as it flows through the nodes
+
+| After node | Keys written (✚ new, ✎ updated) | Example values (run 8) |
+|------------|----------------------------------|------------------------|
+| *input* | ✚ `question`, `retry_count=0`, `max_retries=2` | "What are the recent approaches…" |
+| planner | ✚ `queries`, ✚ `rationale` (✚ `warnings` on failure) | 4 queries, e.g. "GraphRAG query focused subgraph retrieval" |
+| researcher | ✚/✎ `papers` (appends on each loop) | stub: one fake paper per query |
+| retriever | ✚/✎ `passages` | stub passages |
+| analyst | ✚/✎ `analysis` | "[stub] Compared findings across 4 passages." |
+| evidence_checker | ✎ `evidence_sufficient`, `evidence_gaps`, `retry_count` | 1st pass: insufficient, gaps=["… evaluation"], retry_count=1 |
+| researcher (loop) | ✎ `papers` (+ papers for the gap query) | 5 papers |
+| … | … | 2nd check: sufficient → route to report |
+| report | ✚ `report` | markdown with a Sources list |
+
+A node only returns what it changes; LangGraph merges that into the state and
+passes the whole state to the next node. (Phase 4 adds **reducers**, which say
+*how* to merge, e.g. append to a list instead of overwriting.)
+
+### 4. Inside one node: the planner's LCEL chain
+
+![Planner chain](images/planner_chain.svg)
+
+```mermaid
+flowchart TD
+    I["{question, num_queries}"] --> T[ChatPromptTemplate]
+    T -->|"[SystemMessage, HumanMessage]"| L["ChatOpenAI gpt-6-luna<br/>+ response_format = json_schema(ResearchPlan)<br/>+ reasoning_effort"]
+    L -->|"AIMessage: JSON string<br/>+ usage_metadata"| C[_check_refusal]
+    C --> PR["RunnableLambda: parse"]
+    PR -->|"ResearchPlan object"| N["planner_node: clean / dedupe / cap"]
+    N -->|"{queries, rationale}"| ST[(ResearchState)]
+```
+
+### 5. How tracing works: one handler, every nested call
+
+![Callbacks tree](images/callbacks_tree.svg)
+
+```mermaid
+sequenceDiagram
+    participant API as FastAPI
+    participant G as research_graph
+    participant N as planner (node)
+    participant CH as plan_queries (chain)
+    participant M as ChatOpenAI
+    participant R as TraceRecorder → trace_spans
+    API->>G: invoke(state, config{callbacks:[R]})
+    G-->>R: on_chain_start(id=A, parent=None)
+    G->>N: run node with config
+    N-->>R: on_chain_start(id=B, parent=A)
+    N->>CH: chain.invoke(inputs, config)
+    CH-->>R: on_chain_start(id=C, parent=B)
+    CH->>M: messages + response_format
+    M-->>R: on_chat_model_start(id=E, parent=C)
+    M-->>R: on_llm_end(id=E, tokens 259/183)
+    CH-->>R: on_chain_end(id=C)
+    N-->>R: on_chain_end(id=B)
+    G-->>R: on_chain_end(id=A)
+```
+
+### 6. Configuration: one file, two editors, read at run time
+
+```mermaid
+flowchart LR
+    F[(settings/config.toml)] <-->|"tomlkit write · mtime poll"| AD[Admin page]
+    ED[Your editor] -->|save| F
+    F -->|"get_settings(): reload when mtime changes"| S[Settings object]
+    S --> LLM["get_llm(): ChatOpenAI(model, reasoning_effort, …)"]
+    S --> NODES["nodes read num_queries, top_k, max_retries … at call time"]
+    S -->|"snapshot per run"| DB[(research_runs.config_json)]
+    U[Settings page] -->|"per-user prefs"| UDB[(user_settings)]
+```
+
+Why it matters: because nodes read settings **when they run**, a change on the
+Admin page applies to the very next run, and every run stores the exact
+settings it used, so experiments can be compared later.
+
+---
+
 ## Phase 1: UI shell + config sync (no LangGraph)
 
 **Idea:** describe settings once (Pydantic models with metadata) and generate

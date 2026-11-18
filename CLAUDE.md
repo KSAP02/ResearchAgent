@@ -25,7 +25,7 @@ phase by phase.
 - In Git Bash, prefix `docker compose exec` commands that use container paths
   with `MSYS_NO_PATHCONV=1`.
 - Never commit `.env` or the data files in `data_warehouse/`.
-- **Every tunable goes in `config/config.toml`**, never hard-coded in nodes.
+- **Every tunable goes in `settings/config.toml`**, never hard-coded in nodes.
   Add new settings as Pydantic `Field`s (with description, `ge`/`le`, and a
   `json_schema_extra` label/step) in `backend/config.py` so they appear on
   the Admin page automatically. The file is hot-reloaded on change, so no
@@ -42,7 +42,7 @@ phase by phase.
   `[llm].model_kind`.
 - **Schema changes = a new entry in `MIGRATIONS`** (never edit an applied one)
   + update `MD_files/database.md`.
-- **System vs user settings:** system hyperparameters → `config/config.toml`
+- **System vs user settings:** system hyperparameters → `settings/config.toml`
   (Admin page). Per-user preferences → `backend/user_settings.py` models,
   stored in SQLite (Settings page). Mark preferences that a later phase wires
   up with `json_schema_extra={"phase": N}`.
@@ -77,7 +77,7 @@ phase by phase.
 | Frontend   | React + TypeScript + Vite, served by nginx (proxies `/api` to the backend) |
 | LLM        | OpenAI `gpt-6-luna` (reasoning model: `reasoning_effort`, no custom temperature) via `langchain-openai` `ChatOpenAI` |
 | Embeddings | OpenAI `text-embedding-3-small`, 1536-dim (`OpenAIEmbeddings`) |
-| Tuning     | `config/config.toml` (all hyperparameters, two-way synced with the Admin page); secrets in `.env` |
+| Tuning     | `settings/config.toml` (all hyperparameters, two-way synced with the Admin page); secrets in `.env` |
 
 ## Run
 
@@ -102,7 +102,7 @@ The checker loops back to the researcher until the evidence is sufficient or
 | `requirements.txt` (root) | Python deps for the venv and the backend image |
 | `backend/Dockerfile` | Built with the repo root as context; excludes come from `backend/Dockerfile.dockerignore` |
 | `backend/app.py` | FastAPI routes; initializes the DBs at startup |
-| `config/config.toml` | Hyperparameters. The `config/` dir is bind-mounted read-write (directory, not file, so editor saves stay visible) |
+| `settings/config.toml` | Hyperparameters. The `settings/` dir is bind-mounted read-write (directory, not file, so editor saves stay visible) |
 | `backend/config.py` | Settings: env/.env > config.toml > defaults; nested section models with UI metadata; mtime-based hot reload (`get_settings`, `force_reload`, `last_load_error`) |
 | `backend/form_schema.py` | Turns Pydantic models into form descriptions for the UI; validates partial changes |
 | `backend/routers/admin.py` | `GET/PUT /api/admin/config`: read/write config.toml via `tomlkit` (keeps comments), in-place write |
@@ -203,3 +203,7 @@ API: `GET /api/health` (incl. schema_version), `GET /api/config`, `GET/PUT /api/
   timing bars, prompt/response/params per span, config snapshot). Experiments
   recorded in `learning_notes.md`. Tested in Docker: migration on the existing DB,
   6 real runs, planner fallback with a bad model name, screenshots.
+- **2026-11-18**: Hyperparameter file moved by the user to `settings/config.toml`
+  (was `config/config.toml`). Updated `CONFIG_PATH` default, Dockerfile (`COPY settings/`),
+  compose mount `./settings:/app/settings`, and all docs. Added data-flow diagrams to
+  `learning_notes.md`.

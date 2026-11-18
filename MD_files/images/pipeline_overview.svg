@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6E6A63"/>
+    </marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F8572"/>
+    </marker>
+  </defs>
+  <rect width="960" height="600" rx="14" fill="#F5F4F1"/>
+
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">The research pipeline (LangGraph StateGraph)</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">Each box is a graph node: a function that reads the shared state and returns the keys it changes.</text>
+
+  <!-- row 1 -->
+  <rect x="30" y="95" width="150" height="64" rx="32" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="105" y="132" font-size="14" text-anchor="middle" fill="#2A2A28">User question</text>
+
+  <rect x="240" y="95" width="180" height="64" rx="10" fill="#DDE3DC" stroke="#6F8572" stroke-width="2"/>
+  <text x="330" y="122" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Planner</text>
+  <text x="330" y="142" font-size="12" text-anchor="middle" fill="#4E5F51">LLM · structured output</text>
+
+  <rect x="480" y="95" width="180" height="64" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="570" y="122" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Researcher</text>
+  <text x="570" y="142" font-size="12" text-anchor="middle" fill="#6E6A63">arXiv search · Phase 3</text>
+
+  <rect x="720" y="95" width="200" height="64" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="820" y="122" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Retriever</text>
+  <text x="820" y="142" font-size="12" text-anchor="middle" fill="#6E6A63">PDFs → Milvus · Phase 5</text>
+
+  <!-- row 2 -->
+  <rect x="720" y="255" width="200" height="64" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="820" y="282" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Analyst</text>
+  <text x="820" y="302" font-size="12" text-anchor="middle" fill="#6E6A63">compare approaches · Phase 6</text>
+
+  <rect x="480" y="255" width="180" height="64" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="570" y="282" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Evidence checker</text>
+  <text x="570" y="302" font-size="12" text-anchor="middle" fill="#6E6A63">enough evidence? · Phase 6</text>
+
+  <rect x="240" y="255" width="180" height="64" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="330" y="282" font-size="15" font-weight="600" text-anchor="middle" fill="#2A2A28">Report writer</text>
+  <text x="330" y="302" font-size="12" text-anchor="middle" fill="#6E6A63">citations · Phase 10</text>
+
+  <rect x="30" y="255" width="150" height="64" rx="32" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="105" y="292" font-size="14" text-anchor="middle" fill="#2A2A28">Cited report</text>
+
+  <!-- arrows -->
+  <line x1="180" y1="127" x2="236" y2="127" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="420" y1="127" x2="476" y2="127" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="660" y1="127" x2="716" y2="127" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="820" y1="159" x2="820" y2="251" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="720" y1="287" x2="664" y2="287" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="480" y1="287" x2="424" y2="287" stroke="#6F8572" stroke-width="1.8" marker-end="url(#arrA)"/>
+  <text x="452" y="278" font-size="11" text-anchor="middle" fill="#4E5F51">yes</text>
+  <text x="452" y="305" font-size="11" text-anchor="middle" fill="#4E5F51">or cap hit</text>
+  <line x1="240" y1="287" x2="184" y2="287" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- loop -->
+  <path d="M 560 255 L 560 163" fill="none" stroke="#6F8572" stroke-width="1.8" marker-end="url(#arrA)"/>
+  <text x="572" y="200" font-size="12" font-weight="600" fill="#4E5F51">no → research again</text>
+  <text x="572" y="216" font-size="11" fill="#6E6A63">conditional edge: route_after_check()</text>
+  <text x="572" y="231" font-size="11" fill="#6E6A63">cycle capped by [evidence].max_retries</text>
+
+  <!-- shared state -->
+  <rect x="30" y="360" width="890" height="92" rx="12" fill="#FFFFFF" stroke="#D4D0C9"/>
+  <text x="48" y="386" font-size="14" font-weight="600" fill="#2A2A28">Shared state: ResearchState (TypedDict)</text>
+  <text x="48" y="404" font-size="12" fill="#6E6A63">Every node reads all of it and returns only the keys it changes; LangGraph merges the update.</text>
+  <g font-size="12" font-family="Consolas, Menlo, monospace" fill="#2A2A28">
+    <rect x="48" y="416" width="74" height="24" rx="6" fill="#ECEBE7"/><text x="85" y="432" text-anchor="middle">question</text>
+    <rect x="130" y="416" width="66" height="24" rx="6" fill="#DDE3DC"/><text x="163" y="432" text-anchor="middle">queries</text>
+    <rect x="204" y="416" width="78" height="24" rx="6" fill="#DDE3DC"/><text x="243" y="432" text-anchor="middle">rationale</text>
+    <rect x="290" y="416" width="58" height="24" rx="6" fill="#ECEBE7"/><text x="319" y="432" text-anchor="middle">papers</text>
+    <rect x="356" y="416" width="74" height="24" rx="6" fill="#ECEBE7"/><text x="393" y="432" text-anchor="middle">passages</text>
+    <rect x="438" y="416" width="74" height="24" rx="6" fill="#ECEBE7"/><text x="475" y="432" text-anchor="middle">analysis</text>
+    <rect x="520" y="416" width="150" height="24" rx="6" fill="#ECEBE7"/><text x="595" y="432" text-anchor="middle">evidence_sufficient</text>
+    <rect x="678" y="416" width="94" height="24" rx="6" fill="#ECEBE7"/><text x="725" y="432" text-anchor="middle">retry_count</text>
+    <rect x="780" y="416" width="56" height="24" rx="6" fill="#ECEBE7"/><text x="808" y="432" text-anchor="middle">report</text>
+    <rect x="844" y="416" width="68" height="24" rx="6" fill="#ECEBE7"/><text x="878" y="432" text-anchor="middle">warnings</text>
+  </g>
+
+  <!-- stores -->
+  <text x="30" y="488" font-size="14" font-weight="600" fill="#2A2A28">Where data is kept</text>
+  <rect x="30" y="500" width="280" height="70" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="46" y="524" font-size="13" font-weight="600" fill="#2A2A28">SQLite · app.db</text>
+  <text x="46" y="543" font-size="12" fill="#6E6A63">research_runs · trace_spans</text>
+  <text x="46" y="560" font-size="12" fill="#6E6A63">user_settings · schema_version</text>
+  <rect x="330" y="500" width="280" height="70" rx="10" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="6 4"/>
+  <text x="346" y="524" font-size="13" font-weight="600" fill="#2A2A28">Milvus Lite · milvus.db</text>
+  <text x="346" y="543" font-size="12" fill="#6E6A63">paper_passages (vectors)</text>
+  <text x="346" y="560" font-size="12" fill="#6E6A63">filled from Phase 5</text>
+  <rect x="630" y="500" width="290" height="70" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="646" y="524" font-size="13" font-weight="600" fill="#2A2A28">settings/config.toml</text>
+  <text x="646" y="543" font-size="12" fill="#6E6A63">hyperparameters, synced with Admin</text>
+  <text x="646" y="560" font-size="12" fill="#6E6A63">read by nodes at run time</text>
+
+  <!-- legend -->
+  <rect x="640" y="28" width="22" height="14" rx="3" fill="#DDE3DC" stroke="#6F8572" stroke-width="2"/>
+  <text x="668" y="40" font-size="12" fill="#2A2A28">real now</text>
+  <rect x="740" y="28" width="22" height="14" rx="3" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="4 3"/>
+  <text x="768" y="40" font-size="12" fill="#2A2A28">stub (built in a later phase)</text>
+</svg>

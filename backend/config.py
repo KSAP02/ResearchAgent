@@ -1,8 +1,8 @@
 """Application settings.
 
-Precedence (highest first): env vars / .env  >  config/config.toml  >  defaults below.
+Precedence (highest first): env vars / .env  >  settings/config.toml  >  defaults below.
 - Secrets and deployment values (OPENAI_API_KEY, DATA_DIR, CORS_ORIGINS) come from env.
-- Hyperparameters live in config/config.toml (path from CONFIG_PATH).
+- Hyperparameters live in settings/config.toml (path from CONFIG_PATH).
 - Nested values can be overridden from env with SECTION__KEY, e.g. LLM__MODEL=gpt-4.1.
 
 Hot reload: get_settings() re-reads the file whenever its mtime changes, so edits
@@ -29,7 +29,7 @@ from pydantic_settings import (
 log = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", _REPO_ROOT / "config" / "config.toml"))
+CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", _REPO_ROOT / "settings" / "config.toml"))
 
 RESTART = {"requires_restart": True}
 

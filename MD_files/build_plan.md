@@ -125,8 +125,8 @@ generating its own UI.)
   the backend are labelled with the phase that wires them up.
 
 **Build: backend (only the config/settings API)**
-- Move config to **`config/config.toml`** and bind-mount the **directory**
-  (`./config:/app/config`, read-write). A single-file mount points to the file
+- Move config to **`settings/config.toml`** and bind-mount the **directory**
+  (`./settings:/app/settings`, read-write). A single-file mount points to the file
   that existed at container start and goes stale when an editor saves by
   replacing the file.
 - `GET /api/admin/config` → `{schema, values, mtime}` (JSON Schema from the
@@ -140,7 +140,7 @@ generating its own UI.)
   and refreshes.
 - `GET/PUT /api/user/settings`: a `user_settings` table in SQLite (one default user for now).
 
-**Experiment:** edit `config/config.toml` in your editor and watch the Admin page
+**Experiment:** edit `settings/config.toml` in your editor and watch the Admin page
 update; change `evidence.max_retries` in the UI and watch the file change and the
 next run's behaviour change.
 
@@ -417,7 +417,7 @@ ways.
 
 1. Build only that phase's scope.
 2. Add deps to the root `requirements.txt` / `frontend/package.json`.
-3. Expose new tunables in `config/config.toml` (they show up on the Admin page automatically).
+3. Expose new tunables in `settings/config.toml` (they show up on the Admin page automatically).
 4. `docker compose up -d --build` → health → end-to-end run → restart/persistence.
 5. Run the phase's experiment; write findings in `MD_files/learning_notes.md`.
 6. Update `CLAUDE.md` (progress + changelog) and `project_scaffold.md` if the scaffold changed.

@@ -1,4 +1,4 @@
-"""Admin API: read/write config/config.toml (system hyperparameters).
+"""Admin API: read/write settings/config.toml (system hyperparameters).
 
 Two-way sync:
 - UI -> file: PUT validates the changes, writes them with tomlkit (keeping

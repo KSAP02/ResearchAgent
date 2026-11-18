@@ -10,12 +10,12 @@ services:
         required: false
     environment:
       DATA_DIR: /data
-      CONFIG_PATH: /app/config/config.toml
+      CONFIG_PATH: /app/settings/config.toml
     volumes:
       - research_data:/data     # Milvus Lite (milvus.db) + SQLite (app.db)
       # Directory mount (not a single file), read-write: the Admin page writes
       # config.toml and editor saves on the host stay visible without a restart.
-      - ./config:/app/config
+      - ./settings:/app/settings
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s

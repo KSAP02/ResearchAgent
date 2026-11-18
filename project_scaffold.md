@@ -14,7 +14,7 @@ runs it all, verified end to end with stub nodes before any LLM code is written.
 |-----------------|------------------------------------------|-----|
 | Agent graph     | LangGraph (`StateGraph`) + LangChain core | Shared state, conditional edges, cycles |
 | LLM + embeddings| OpenAI via `langchain-openai`            | `ChatOpenAI` + `OpenAIEmbeddings` |
-| Hyperparameters | `config/config.toml` (pydantic-settings TOML source) | Tune without touching code; two-way synced with an Admin page |
+| Hyperparameters | `settings/config.toml` (pydantic-settings TOML source) | Tune without touching code; two-way synced with an Admin page |
 | UI routing      | `react-router-dom` + collapsible sidebar  | Pages added as sidebar entries |
 | Backend API     | FastAPI + Uvicorn                        | Frontend calls it over HTTP |
 | Vector DB       | Milvus Lite (`pymilvus` + `milvus-lite`)  | Single local file, no server |
@@ -22,7 +22,7 @@ runs it all, verified end to end with stub nodes before any LLM code is written.
 | Frontend        | React + TypeScript + Vite                | Built to static files, served by nginx |
 | Containers      | Docker + docker compose                  | One command runs both services |
 
-Secrets go in `.env`, system hyperparameters in `config/config.toml` (Admin page), per-user preferences in SQLite (Settings page). See Steps 1, 2 and 8b.
+Secrets go in `.env`, system hyperparameters in `settings/config.toml` (Admin page), per-user preferences in SQLite (Settings page). See Steps 1, 2 and 8b.
 
 ## 2. Final layout
 
@@ -79,10 +79,11 @@ Secrets go in `.env`, system hyperparameters in `config/config.toml` (Admin page
 │   ├── database.md            # starts empty: every table/collection + schema
 │   ├── build_phases/          # one record per finished phase
 │   │   └── phase_NN_<name>.md
-│   └── learning_notes.md      # (optional) what each phase taught
+│   ├── images/                # SVG diagrams referenced from the notes
+│   └── learning_notes.md      # (optional) what each phase taught, with diagrams
 ├── <name>_venv/               # local venv for IDE support (git-ignored)
 ├── requirements.txt           # shared by local venv + backend image
-├── config/
+├── settings/
 │   └── config.toml            # ALL hyperparameters (committed, no secrets)
 ├── docker-compose.yml
 ├── .env.example               # committed; .env is not
@@ -100,7 +101,7 @@ Every `agents/`, `tools/`, `graph/`, `db/` folder gets an empty `__init__.py`.
 
 ```bash
 mkdir -p backend/{agents,tools,graph,db,routers} frontend/src/{api,components,context,pages} \
-         config data_warehouse MD_files/build_phases
+         settings data_warehouse MD_files/build_phases
 touch backend/{agents,tools,graph,db,routers}/__init__.py data_warehouse/.gitkeep
 touch MD_files/build_plan.md MD_files/database.md MD_files/build_phases/.gitkeep
 ```
@@ -136,7 +137,7 @@ dist/
 | File | Holds | Committed? |
 |------|-------|-----------|
 | `.env` | Secrets + deployment values (`OPENAI_API_KEY`, `CORS_ORIGINS`, `DATA_DIR`, `CONFIG_PATH`) | No (`.env.example` is) |
-| `config/config.toml` | Every hyperparameter you might tune | Yes |
+| `settings/config.toml` | Every hyperparameter you might tune | Yes |
 
 **`.env.example`**:
 
@@ -144,11 +145,11 @@ dist/
 OPENAI_API_KEY=
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 # DATA_DIR=      # unset locally -> <repo>/data_warehouse; compose sets /data
-# CONFIG_PATH=   # unset locally -> <repo>/config/config.toml; compose sets /app/config/config.toml
+# CONFIG_PATH=   # unset locally -> <repo>/settings/config.toml; compose sets /app/settings/config.toml
 # Override any config.toml value as SECTION__KEY, e.g. LLM__MODEL=gpt-4.1
 ```
 
-**`config/config.toml`**: one table per concern; every node reads its knobs from here:
+**`settings/config.toml`**: one table per concern; every node reads its knobs from here:
 
 ```toml
 [llm]
@@ -209,7 +210,7 @@ milvus_collection = "paper_passages"
   Use `Literal[...]` for choices (rendered as a select). The class docstring
   becomes the section description.
 - `SettingsConfigDict(env_file=".env", env_nested_delimiter="__", toml_file=CONFIG_PATH)`,
-  where `CONFIG_PATH = os.environ.get("CONFIG_PATH", <repo>/config/config.toml)`.
+  where `CONFIG_PATH = os.environ.get("CONFIG_PATH", <repo>/settings/config.toml)`.
 - Override `settings_customise_sources` to add `TomlConfigSettingsSource`.
   Precedence: **init > env > .env > config.toml > defaults**.
 - `data_dir` defaults to `<repo>/data_warehouse`; Docker sets `DATA_DIR=/data`.
@@ -313,8 +314,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
-COPY config/ /app/config/              # baked-in default; compose mounts over it
-ENV CONFIG_PATH=/app/config/config.toml
+COPY settings/ /app/settings/              # baked-in default; compose mounts over it
+ENV CONFIG_PATH=/app/settings/config.toml
 # CMD ... --workers 1  (Milvus Lite is single-process)
 RUN mkdir -p /data
 VOLUME ["/data"]
@@ -430,10 +431,10 @@ services:
         required: false        # fresh clones work without .env
     environment:
       DATA_DIR: /data
-      CONFIG_PATH: /app/config/config.toml
+      CONFIG_PATH: /app/settings/config.toml
     volumes:
       - research_data:/data     # Milvus Lite + SQLite persist here
-      - ./config:/app/config    # DIRECTORY mount, read-write: Admin writes + live editor edits
+      - ./settings:/app/settings    # DIRECTORY mount, read-write: Admin writes + live editor edits
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
@@ -464,7 +465,7 @@ docker compose restart backend && curl localhost:8000/api/runs   # run persisted
 curl localhost:8000/api/config                       # active hyperparameters
 ```
 
-**Tuning loop:** edit `config/config.toml` (or use the Admin page). The change is
+**Tuning loop:** edit `settings/config.toml` (or use the Admin page). The change is
 live on the next request, no restart needed (except fields marked "restart").
 Confirm with `curl localhost:8000/api/config`. (Verified: setting
 `[evidence].max_retries = 0` makes the graph skip the retry loop.)
@@ -518,7 +519,7 @@ Wipe Docker data: `docker compose down -v`.
 11. **Single-file bind mounts go stale.** Mounting `./config.toml:/app/config.toml`
     attaches the file as it was when the container started. Editors that save by
     writing a new file and renaming it leave the container reading the old copy
-    until a restart. Mount the **directory** (`./config:/app/config`) instead.
+    until a restart. Mount the **directory** (`./settings:/app/settings`) instead.
 12. **Hot reload only works if nothing caches settings at import.** Read
     `get_settings()` inside functions, and key LLM client caches on the config
     values. CORS origins are read once at startup (restart to change).

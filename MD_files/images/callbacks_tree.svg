@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F8572"/>
+    </marker>
+  </defs>
+  <rect width="960" height="560" rx="14" fill="#F5F4F1"/>
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">How one callback handler sees every nested call</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">Pass it once in the config; every Runnable inside reports start/end with its own id and its parent's id.</text>
+
+  <!-- code -->
+  <rect x="30" y="80" width="420" height="34" rx="8" fill="#2A2A28"/>
+  <text x="44" y="102" font-size="12" font-family="Consolas, Menlo, monospace" fill="#E4E1DA">graph.invoke(state, config={"callbacks": [recorder]})</text>
+
+  <!-- nested boxes -->
+  <rect x="30" y="130" width="420" height="300" rx="12" fill="#ECEBE7" stroke="#9A958D"/>
+  <text x="46" y="154" font-size="14" font-weight="600" fill="#2A2A28">research_graph</text>
+  <text x="434" y="154" font-size="12" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id A · parent —</text>
+
+  <rect x="50" y="168" width="380" height="244" rx="10" fill="#F5F4F1" stroke="#9A958D"/>
+  <text x="66" y="192" font-size="14" font-weight="600" fill="#2A2A28">planner (node)</text>
+  <text x="414" y="192" font-size="12" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id B · parent A</text>
+
+  <rect x="70" y="206" width="340" height="188" rx="10" fill="#ECEBE7" stroke="#9A958D"/>
+  <text x="86" y="230" font-size="14" font-weight="600" fill="#2A2A28">plan_queries (chain)</text>
+  <text x="394" y="230" font-size="12" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id C · parent B</text>
+
+  <g font-size="12">
+    <rect x="90" y="244" width="300" height="32" rx="7" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="104" y="265" fill="#2A2A28">ChatPromptTemplate</text>
+    <text x="376" y="265" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id D · parent C</text>
+    <rect x="90" y="284" width="300" height="32" rx="7" fill="#DDE3DC" stroke="#6F8572" stroke-width="1.6"/>
+    <text x="104" y="305" fill="#2A2A28" font-weight="600">ChatOpenAI (LLM)</text>
+    <text x="376" y="305" text-anchor="end" fill="#4E5F51" font-family="Consolas, Menlo, monospace">id E · parent C</text>
+    <rect x="90" y="324" width="300" height="32" rx="7" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="104" y="345" fill="#2A2A28">_check_refusal</text>
+    <text x="376" y="345" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id F · parent C</text>
+    <rect x="90" y="358" width="300" height="28" rx="7" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="104" y="377" fill="#2A2A28">RunnableLambda (parse)</text>
+    <text x="376" y="377" text-anchor="end" fill="#6E6A63" font-family="Consolas, Menlo, monospace">id G · parent C</text>
+  </g>
+
+  <!-- events -->
+  <text x="500" y="100" font-size="14" font-weight="600" fill="#2A2A28">Events the recorder receives (in order)</text>
+  <g font-size="12" font-family="Consolas, Menlo, monospace" fill="#2A2A28">
+    <text x="500" y="128">on_chain_start<tspan x="660">id=A parent=None</tspan></text>
+    <text x="500" y="148">on_chain_start<tspan x="660">id=B parent=A</tspan></text>
+    <text x="500" y="168">on_chain_start<tspan x="660">id=C parent=B</tspan></text>
+    <text x="500" y="188">on_chain_start<tspan x="660">id=D parent=C</tspan></text>
+    <text x="500" y="208">on_chain_end<tspan x="660">id=D</tspan></text>
+    <text x="500" y="228" fill="#4E5F51" font-weight="700">on_chat_model_start<tspan x="660">id=E parent=C  (messages, params)</tspan></text>
+    <text x="500" y="248" fill="#4E5F51" font-weight="700">on_llm_end<tspan x="660">id=E  (response, tokens)</tspan></text>
+    <text x="500" y="268">on_chain_start/end<tspan x="660">id=F, id=G (parent=C)</tspan></text>
+    <text x="500" y="288">on_chain_end<tspan x="660">id=C, then B</tspan></text>
+    <text x="500" y="308" fill="#6E6A63">… researcher, retriever, … (parent=A)</text>
+    <text x="500" y="328">on_chain_end<tspan x="660">id=A</tspan></text>
+  </g>
+  <line x1="450" y1="270" x2="494" y2="230" stroke="#6F8572" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- table -->
+  <text x="500" y="370" font-size="14" font-weight="600" fill="#2A2A28">→ rows in trace_spans</text>
+  <g font-size="12" font-family="Consolas, Menlo, monospace">
+    <rect x="500" y="380" width="430" height="26" fill="#ECEBE7"/>
+    <text y="398" fill="#2A2A28" font-weight="700"><tspan x="510">span_id</tspan><tspan x="580">parent</tspan><tspan x="640">name</tspan><tspan x="770">type</tspan><tspan x="830">tokens</tspan></text>
+    <text y="422" fill="#2A2A28"><tspan x="510">A</tspan><tspan x="580">—</tspan><tspan x="640">research_graph</tspan><tspan x="770">graph</tspan></text>
+    <text y="442" fill="#2A2A28"><tspan x="510">B</tspan><tspan x="580">A</tspan><tspan x="640">planner</tspan><tspan x="770">node</tspan></text>
+    <text y="462" fill="#2A2A28"><tspan x="510">C</tspan><tspan x="580">B</tspan><tspan x="640">plan_queries</tspan><tspan x="770">chain</tspan></text>
+    <text y="482" fill="#4E5F51"><tspan x="510">E</tspan><tspan x="580">C</tspan><tspan x="640">ChatOpenAI</tspan><tspan x="770">llm</tspan><tspan x="830">259/183</tspan></text>
+  </g>
+  <text x="30" y="470" font-size="13" fill="#2A2A28">Why it works without wiring:</text>
+  <text x="30" y="490" font-size="12" fill="#6E6A63">LangGraph gives each node the run's RunnableConfig; the node passes it to</text>
+  <text x="30" y="506" font-size="12" fill="#6E6A63">chain.invoke(…, config); each Runnable makes a child callback manager whose</text>
+  <text x="30" y="522" font-size="12" fill="#6E6A63">parent is its own id. Grouping rows by parent rebuilds the tree on the Runs page.</text>
+</svg>

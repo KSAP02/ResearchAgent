@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 760" width="960" height="760" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6E6A63"/>
+    </marker>
+  </defs>
+  <rect width="960" height="760" rx="14" fill="#F5F4F1"/>
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">Inside the planner node: data through an LCEL chain</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">Grey notes = data passed along. Green boxes = Runnables (each one appears as a span in the trace).</text>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#2A2A28">
+    <!-- D1 -->
+    <rect x="60" y="84" width="600" height="44" rx="8" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="76" y="104">{"question": "What are the recent approaches to … Graph RAG?",</text>
+    <text x="76" y="120"> "num_queries": 4}       ← from state + settings/config.toml</text>
+  </g>
+  <line x1="360" y1="128" x2="360" y2="150" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <rect x="60" y="152" width="600" height="48" rx="10" fill="#DDE3DC" stroke="#6F8572" stroke-width="1.6"/>
+  <text x="76" y="173" font-size="14" font-weight="600" fill="#2A2A28">ChatPromptTemplate</text>
+  <text x="76" y="191" font-size="12" fill="#4E5F51">fills {question} and {num_queries} into a system + human message · ~9 ms</text>
+  <line x1="360" y1="200" x2="360" y2="222" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#2A2A28">
+    <rect x="60" y="224" width="600" height="44" rx="8" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="76" y="244">[SystemMessage("You are a research librarian … exactly 4 queries …"),</text>
+    <text x="76" y="260"> HumanMessage("Question: What are the recent approaches …")]</text>
+  </g>
+  <line x1="360" y1="268" x2="360" y2="290" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <rect x="60" y="292" width="600" height="64" rx="10" fill="#DDE3DC" stroke="#6F8572" stroke-width="1.6"/>
+  <text x="76" y="313" font-size="14" font-weight="600" fill="#2A2A28">ChatOpenAI (gpt-6-luna)</text>
+  <text x="76" y="331" font-size="12" fill="#4E5F51">request also carries: response_format = json_schema(ResearchPlan, strict),</text>
+  <text x="76" y="347" font-size="12" fill="#4E5F51">reasoning_effort = medium, max_completion_tokens = 8000 · ~2.5–4 s</text>
+  <line x1="360" y1="356" x2="360" y2="378" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#2A2A28">
+    <rect x="60" y="380" width="600" height="44" rx="8" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="76" y="400">AIMessage(content='{"rationale": "…", "queries": ["GraphRAG …", …]}')</text>
+    <text x="76" y="416" fill="#6E6A63">usage: 259 in / 183 out (94 of them hidden reasoning)</text>
+  </g>
+  <line x1="360" y1="424" x2="360" y2="446" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <rect x="60" y="448" width="600" height="48" rx="10" fill="#DDE3DC" stroke="#6F8572" stroke-width="1.6"/>
+  <text x="76" y="469" font-size="14" font-weight="600" fill="#2A2A28">_check_refusal → RunnableLambda (parser)</text>
+  <text x="76" y="487" font-size="12" fill="#4E5F51">raise if the model refused; parse the JSON string into the Pydantic model</text>
+  <line x1="360" y1="496" x2="360" y2="518" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#2A2A28">
+    <rect x="60" y="520" width="600" height="30" rx="8" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="76" y="540">ResearchPlan(rationale="…", queries=["…", "…", "…", "…"])</text>
+  </g>
+  <line x1="360" y1="550" x2="360" y2="572" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <rect x="60" y="574" width="600" height="48" rx="10" fill="#ECEBE7" stroke="#9A958D"/>
+  <text x="76" y="595" font-size="14" font-weight="600" fill="#2A2A28">planner_node (plain Python)</text>
+  <text x="76" y="613" font-size="12" fill="#6E6A63">trim whitespace, drop duplicates, cap at num_queries · on error: fall back to [question]</text>
+  <line x1="360" y1="622" x2="360" y2="644" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#2A2A28">
+    <rect x="60" y="646" width="600" height="44" rx="8" fill="#FFFFFF" stroke="#6F8572" stroke-width="1.6"/>
+    <text x="76" y="666">return {"queries": [...], "rationale": "..."}</text>
+    <text x="76" y="682" fill="#6E6A63">LangGraph merges this partial update into ResearchState</text>
+  </g>
+
+  <!-- bracket for the chain -->
+  <path d="M 680 152 L 700 152 L 700 496 L 680 496" fill="none" stroke="#6F8572" stroke-width="2"/>
+  <text x="716" y="300" font-size="14" font-weight="600" fill="#2A2A28">plan_queries</text>
+  <text x="716" y="320" font-size="12" fill="#4E5F51" font-family="Consolas, Menlo, monospace">PROMPT</text>
+  <text x="716" y="336" font-size="12" fill="#4E5F51" font-family="Consolas, Menlo, monospace">| llm.with_structured_output(</text>
+  <text x="716" y="352" font-size="12" fill="#4E5F51" font-family="Consolas, Menlo, monospace">    ResearchPlan)</text>
+  <text x="716" y="376" font-size="12" fill="#6E6A63">one RunnableSequence,</text>
+  <text x="716" y="392" font-size="12" fill="#6E6A63">invoked with the node's config</text>
+  <text x="716" y="408" font-size="12" fill="#6E6A63">so callbacks see every step</text>
+
+  <text x="30" y="730" font-size="12" fill="#6E6A63">Key idea: with_structured_output adds the schema to the request and the parser after the model; the field descriptions in ResearchPlan are read by the model as instructions.</text>
+</svg>

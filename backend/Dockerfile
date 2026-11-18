@@ -5,7 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DATA_DIR=/data \
-    CONFIG_PATH=/app/config/config.toml
+    CONFIG_PATH=/app/settings/config.toml
 
 WORKDIR /app
 
@@ -13,8 +13,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
-# Baked-in default; docker-compose bind-mounts ./config over it for live two-way sync.
-COPY config/ /app/config/
+# Baked-in default; docker-compose bind-mounts ./settings over it for live two-way sync.
+COPY settings/ /app/settings/
 
 RUN mkdir -p /data
 VOLUME ["/data"]
