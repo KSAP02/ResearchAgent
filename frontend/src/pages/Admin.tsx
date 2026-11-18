@@ -84,6 +84,19 @@ export default function Admin() {
 
   const dirtyKeys = Object.keys(draft);
 
+  /** Current value of a field (unsaved edit if any, else saved value). */
+  function currentValue(sectionKey: string, fieldKey: string): FieldValue | undefined {
+    const k = `${sectionKey}.${fieldKey}`;
+    if (k in draft) return draft[k];
+    return config?.sections.find((s) => s.key === sectionKey)?.fields.find((f) => f.key === fieldKey)?.value;
+  }
+
+  /** visible_when: show a field only when sibling fields have the given values. */
+  function isVisible(sectionKey: string, cond: Record<string, FieldValue> | null): boolean {
+    if (!cond) return true;
+    return Object.entries(cond).every(([k, v]) => String(currentValue(sectionKey, k)) === String(v));
+  }
+
   function setField(section: string, key: string, original: FieldValue, value: FieldValue) {
     const k = `${section}.${key}`;
     setDraft((d) => {
@@ -174,7 +187,7 @@ export default function Admin() {
             {section.description && <p>{section.description}</p>}
           </div>
           <div className="fields">
-            {section.fields.map((f) => {
+            {section.fields.filter((f) => isVisible(section.key, f.visible_when)).map((f) => {
               const k = `${section.key}.${f.key}`;
               const dirty = k in draft;
               return (

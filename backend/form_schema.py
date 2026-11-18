@@ -51,6 +51,8 @@ def describe_fields(model_cls: type[BaseModel], values: BaseModel) -> list[dict]
                 "requires_restart": bool(extra.get("requires_restart", False)),
                 "danger": extra.get("danger"),
                 "phase": extra.get("phase"),
+                # {"other_field": value}: UI shows this field only when the sibling matches
+                "visible_when": extra.get("visible_when"),
             }
         )
     return fields

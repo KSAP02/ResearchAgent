@@ -4,6 +4,8 @@ import Sidebar from "./components/Sidebar";
 import { useUserSettings } from "./context/UserSettings";
 import Admin from "./pages/Admin";
 import Home from "./pages/Home";
+import RunDetail from "./pages/RunDetail";
+import Runs from "./pages/Runs";
 import Settings from "./pages/Settings";
 
 const COLLAPSE_KEY = "sidebar-collapsed";
@@ -43,6 +45,8 @@ export default function App() {
       <main className="main">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/runs" element={<Runs />} />
+          <Route path="/runs/:id" element={<RunDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<Navigate to="/" replace />} />

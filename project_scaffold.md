@@ -524,6 +524,16 @@ Wipe Docker data: `docker compose down -v`.
     values. CORS origins are read once at startup (restart to change).
 13. **Python `write_text` on Windows writes CRLF.** Pass `newline="\n"` when
     writing repo files from scripts (`.gitattributes` normalises them on commit anyway).
+14. **Reasoning models reject `temperature`.** Models like `gpt-6-luna` only accept
+    the default temperature and take `reasoning_effort` instead (here: none/low/
+    medium/high/xhigh; `minimal` is rejected). Reasoning tokens count towards
+    `max_tokens`, so give them headroom (8000). Probe a new model's parameters
+    with a tiny script before wiring it in.
+15. **Pass the node's `config` into nested `.invoke()` calls.** A node declared as
+    `def node(state, config: RunnableConfig)` gets the run's callbacks; if it
+    calls a chain without passing `config`, those calls still trace in recent
+    LangChain via context vars, but passing it explicitly is clearer and keeps
+    tags/metadata.
 
 ## 6. Reusing for a new agent
 
@@ -531,9 +541,14 @@ Wipe Docker data: `docker compose down -v`.
 2. Keep the stub-first approach: get `docker compose up` + an end-to-end curl
    passing with stubs, then replace stubs one node at a time, re-testing after each.
 3. Rename the compose volume and Milvus collection to match the new project.
-4. Start `MD_files/` with empty `build_plan.md` and `database.md` plus a
+4. Reuse the **observability pattern**: a LangChain `BaseCallbackHandler`
+   (`tracing/recorder.py`) passed via `graph.invoke(..., config={"callbacks": [...]})`
+   records every node/chain/LLM span to SQLite, and a Runs page shows the tree.
+   No external tracing service is needed. Pair it with the `MIGRATIONS` list +
+   `schema_version` table in `db/sqlite.py` for schema changes.
+5. Start `MD_files/` with empty `build_plan.md` and `database.md` plus a
    `build_phases/` folder; write the plan before Phase 1 and document every
    table in `database.md` as it's created.
-5. Keep the settings pattern: new hyperparameters = new `Field`s in a section
+6. Keep the settings pattern: new hyperparameters = new `Field`s in a section
    model; they show up on the Admin page automatically. New user preferences =
    new fields in `user_settings.py`.

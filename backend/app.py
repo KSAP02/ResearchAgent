@@ -1,17 +1,16 @@
 """FastAPI entry point for the research assistant service."""
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
-from db.sqlite import init_db, list_runs, save_run
+from db.sqlite import init_db, schema_version
 from db.vector_store import get_client, init_vector_store
-from graph.workflow import build_graph
-from routers import admin, user
-from schemas import ResearchRequest, ResearchResponse
+from routers import admin, runs, user
 
-graph = build_graph()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 
 @asynccontextmanager
@@ -21,7 +20,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Agentic Research Assistant", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Agentic Research Assistant", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,6 +31,7 @@ app.add_middleware(
 
 app.include_router(admin.router)
 app.include_router(user.router)
+app.include_router(runs.router)
 
 
 @app.get("/api/health")
@@ -40,6 +40,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "sqlite": str(s.sqlite_path),
+        "schema_version": schema_version(),
         "milvus_collections": get_client().list_collections(),
         "llm_model": s.llm.model,
         "embedding_model": s.embeddings.model,
@@ -50,41 +51,3 @@ def health() -> dict:
 def config() -> dict:
     """Active (non-secret) configuration, so tuning changes can be verified."""
     return get_settings().public_summary()
-
-
-@app.post("/api/research", response_model=ResearchResponse)
-def research(req: ResearchRequest) -> ResearchResponse:
-    s = get_settings()
-    try:
-        result = graph.invoke(
-            {
-                "question": req.question,
-                "retry_count": 0,
-                "max_retries": s.evidence.max_retries,
-            }
-        )
-    except Exception as exc:  # surface graph failures as a clean 500
-        raise HTTPException(status_code=500, detail=f"Workflow failed: {exc}") from exc
-
-    run_id = save_run(
-        question=result["question"],
-        report=result.get("report", ""),
-        retry_count=result.get("retry_count", 0),
-        sufficient=result.get("evidence_sufficient", False),
-        papers=result.get("papers", []),
-    )
-    return ResearchResponse(
-        run_id=run_id,
-        question=result["question"],
-        queries=result.get("queries", []),
-        papers=result.get("papers", []),
-        analysis=result.get("analysis", ""),
-        evidence_sufficient=result.get("evidence_sufficient", False),
-        retry_count=result.get("retry_count", 0),
-        report=result.get("report", ""),
-    )
-
-
-@app.get("/api/runs")
-def runs(limit: int = 20) -> list[dict]:
-    return list_runs(limit)

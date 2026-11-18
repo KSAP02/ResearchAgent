@@ -1,9 +1,12 @@
 """LangChain model factories, configured from config.toml.
 
 Nodes call get_llm() / get_embeddings() instead of building clients themselves,
-so the model, temperature and other settings are changed in one place.
+so the model and its settings are changed in one place (the Admin page).
 Clients are cached per distinct configuration, so a config change (hot reload)
 automatically produces a new client on the next call.
+
+Reasoning models (e.g. gpt-6-luna) reject a custom temperature and take
+`reasoning_effort` instead; standard models take `temperature`.
 """
 from functools import lru_cache
 
@@ -11,17 +14,17 @@ from config import get_settings
 
 
 @lru_cache(maxsize=8)
-def _chat_openai(model: str, temperature: float, max_tokens: int, timeout_s: int, max_retries: int, api_key: str):
+def _chat_openai(model: str, kind: str, effort: str, temperature: float, max_tokens: int,
+                 timeout_s: int, max_retries: int, api_key: str):
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=timeout_s,
-        max_retries=max_retries,
-        api_key=api_key or None,
-    )
+    kwargs = dict(model=model, max_tokens=max_tokens, timeout=timeout_s, max_retries=max_retries,
+                  api_key=api_key or None)
+    if kind == "reasoning":
+        kwargs["reasoning_effort"] = effort
+    else:
+        kwargs["temperature"] = temperature
+    return ChatOpenAI(**kwargs)
 
 
 @lru_cache(maxsize=4)
@@ -36,7 +39,8 @@ def get_llm():
     c = s.llm
     if c.provider != "openai":
         raise ValueError(f"Unsupported LLM provider: {c.provider}")
-    return _chat_openai(c.model, c.temperature, c.max_tokens, c.timeout_s, c.max_retries, s.openai_api_key)
+    return _chat_openai(c.model, c.model_kind, c.reasoning_effort, c.temperature, c.max_tokens,
+                        c.timeout_s, c.max_retries, s.openai_api_key)
 
 
 def get_embeddings():

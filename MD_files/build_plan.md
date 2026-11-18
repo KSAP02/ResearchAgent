@@ -34,7 +34,7 @@ By the end you should be able to explain, and choose between:
 | Persistence | Checkpointers, threads, state history, replay/fork (time travel) |
 | Human-in-the-loop | `interrupt()`, `Command(resume=...)`, approve/edit flows |
 | Streaming | `stream_mode` values (`updates`, `values`, `messages`, `custom`), custom progress events |
-| Observability & eval | LangSmith tracing, datasets, evaluators, comparing config variants |
+| Observability & eval | Callbacks and the run tree (our own tracing + analytics UI), an evaluation harness, comparing config variants |
 | Alternative paradigms | Graph API vs Functional API vs prebuilt agents: when to pick which |
 
 ## 3. Final outcome (definition of done)
@@ -50,7 +50,7 @@ By the end you should be able to explain, and choose between:
 - [ ] Optional human approval of the research plan before searching.
 - [ ] Live progress and report text stream into the UI.
 - [ ] Final report with numbered citations that resolve to real passages; weak evidence flagged.
-- [ ] LangSmith traces for every run; at least one config-vs-config evaluation done.
+- [ ] Every run has a trace in the UI (node and LLM spans, tokens, latency, cost); at least one config-vs-config evaluation done.
 - [ ] Everything runs with `docker compose up`, documented in the README.
 
 ## 4. Principles
@@ -152,26 +152,43 @@ settings persist across restarts, and the UI looks right in both themes.
 
 ---
 
-### Phase 2: LangChain fundamentals + observability (Planner)
+### Phase 2: LangChain fundamentals + our own tracing (Planner) ✅ (done)
 **Concepts:** the **Runnable** interface (`invoke`, `batch`, `stream`, `ainvoke`),
 `ChatPromptTemplate`, messages (`SystemMessage`/`HumanMessage`/`AIMessage`),
-chaining with `prompt | llm | parser` (LCEL), `with_structured_output(PydanticModel)`,
-`RunnableConfig` (tags, metadata, callbacks), **LangSmith tracing**.
+chaining with `prompt | llm` (LCEL), `with_structured_output(PydanticModel)` (and
+what it does under the hood), **`RunnableConfig`** (`callbacks`, `tags`,
+`metadata`, `run_name`), **callbacks** (`BaseCallbackHandler`: chain/LLM/tool
+start, end and error events), the **run tree** (`run_id` / `parent_run_id`),
+and `usage_metadata` (token counts). This is the same mechanism hosted
+tracing tools like LangSmith are built on; here we build it ourselves.
 
 **Build:**
-- LangSmith tracing turned on through env (`LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`).
-- Real **planner**: `prompt | get_llm().with_structured_output(ResearchPlan)` →
-  `{queries, rationale}`; fallback to the raw question on error.
-- Home shows the generated queries.
+- Real **planner**: `ChatPromptTemplate | get_llm().with_structured_output(ResearchPlan)`
+  → `{queries, rationale}`; on an LLM error, fall back to the raw question.
+- **`TraceRecorder` callback handler** passed via `graph.invoke(..., config={"callbacks": [...]})`.
+  It records every graph node, chain and LLM call as a *span*: name, type,
+  parent, start/end, duration, inputs/outputs (truncated), model, prompt and
+  completion tokens, and errors. Spans are stored in a SQLite `trace_spans` table.
+- Each run stores a **config snapshot** + planner queries + status, duration,
+  total tokens and estimated cost (prices per model in `config.toml` `[pricing]`).
+- First real **schema migration** (`schema_version` table + ordered steps).
+- API: `GET /api/runs` (list + stats), `GET /api/runs/{id}`, `GET /api/runs/{id}/trace`.
+- UI: a new **Runs** page in the sidebar: run history with an analytics strip
+  (runs, average duration, tokens, estimated cost) and a run detail view with
+  the **trace tree** (expand a node → its LLM calls → prompt, response, tokens,
+  latency). Home shows the planner's queries and a "View trace" link.
 
-**Experiment:** `[llm].temperature` 0 vs 0.9, `[planner].num_queries`, different
-models. Compare the traces in LangSmith.
+**Experiment:** `[llm].temperature` 0 vs 0.9, `[planner].num_queries`, a
+different `[llm].model`. Compare queries, tokens, latency and cost side by side
+on the Runs page; each run's config snapshot shows exactly what was used.
 
 **Think about:** a graph node is just a function, and a chain is just a Runnable.
-What does the graph add on top of a chain? When would one chain be enough and
-you wouldn't need a graph at all?
+What does the graph add on top of a chain? How do callbacks reach nested calls
+without you passing them down by hand? What does `with_structured_output` send
+to the model to get JSON back?
 
-**Done when:** the planner returns LLM queries and every run shows a trace.
+**Done when:** the planner returns LLM queries and every run has a browsable
+trace with token counts in the UI.
 
 ---
 
@@ -277,7 +294,7 @@ long-term **Store** compared with checkpoints.
 
 **Build:**
 - Graph compiled with a SQLite checkpointer (in the data volume); each run = a thread.
-- A **Runs** page in the sidebar: history, step-by-step state, "re-run from this step".
+- Extend the **Runs** page (built in Phase 2) with checkpoint state per step and "re-run from this step".
 - Resume a run that failed mid-way (for example, an LLM error during analysis).
 
 **Experiment:** fork a past run at the evidence checker with a different
@@ -330,8 +347,9 @@ subgraphs (`subgraphs=True`), async (`astream`), Server-Sent Events.
 
 ### Phase 10: Report, citations and evaluation
 **Concepts:** structured output for long documents, citation-checking functions
-(plain code inside the graph), **LangSmith datasets and evaluators** (LLM-as-judge
-plus code checks), comparing experiments.
+(plain code inside the graph), **our own evaluation harness** (a dataset of
+questions, code checks + LLM-as-judge, results in SQLite and shown in the UI),
+comparing experiments.
 
 **Build:**
 - Report node: `Report {summary, sections, comparison_table, limitations, references}`
@@ -371,7 +389,7 @@ ways.
 
 | Concept | Phase |
 |---------|-------|
-| Runnables, prompts, LCEL, structured output, tracing | 2 |
+| Runnables, prompts, LCEL, structured output, callbacks / own tracing | 2 |
 | Tools, `bind_tools`, `ToolNode`, ReAct, `add_messages` | 3 |
 | Reducers, input/output schemas, `Send` | 4 |
 | Loaders, splitters, embeddings, vector stores, retrievers | 5 |
@@ -379,7 +397,7 @@ ways.
 | Checkpointers, threads, time travel | 7 |
 | `interrupt`, `Command(resume)` | 8 |
 | Streaming modes, custom events | 9 |
-| Evaluation, LangSmith datasets | 10 |
+| Evaluation harness (our own) | 10 |
 | Functional API, prebuilt agents | 11 |
 
 ## 7. How `config.toml` grows
@@ -387,7 +405,7 @@ ways.
 | Phase | Sections added/used |
 |-------|---------------------|
 | 1 | Admin page for all existing sections |
-| 2 | `[llm]`, `[planner]` (+ prompt variants) |
+| 2 | `[llm]`, `[planner]`, `[pricing]`, `[tracing]` (payload truncation) |
 | 3 | `[research]` (+ agent iteration cap) |
 | 4 | `[planner].num_queries` drives the fan-out |
 | 5 | `[ingest]`, `[embeddings]`, `[retrieval]` (+ `search_type`) |
@@ -412,7 +430,7 @@ ways.
 | **arXiv API** (`export.arxiv.org/api/query`) | Search: titles, authors, abstracts, dates, PDF links | Official API, Atom XML, no key | Free |
 | **arXiv PDFs** (`arxiv.org/pdf/<id>`) | Full text for passages | Direct download of individual PDFs | Free |
 | OpenAI | LLM calls + embeddings | API key | **Paid** (per token) |
-| LangSmith | Tracing + evaluation | API key | Free tier is enough |
+| ~~LangSmith~~ | Not used (decided 2026-11-18): tracing and evaluation are built in-house on LangChain callbacks | — | — |
 | *Optional later:* Semantic Scholar, OpenAlex | Citation counts, related papers, wider coverage | Official APIs (free) | Free |
 
 - **No scraping.** Everything goes through official APIs or direct PDF links.
@@ -437,4 +455,4 @@ ways.
 | Milvus Lite is single-process | One uvicorn worker; all Milvus access via the API. Move to Milvus standalone if we ever need more processes |
 | arXiv rate limits | ~1 req / 3 s, small result counts, cache papers in SQLite |
 | Embedding/LLM cost | Caps on papers/PDFs/chunks per run in `config.toml`; skip re-embedding |
-| LangSmith | Needs a free API key; tracing is optional but strongly recommended for learning |
+| Observability | **No LangSmith.** Own tracing via callbacks → SQLite `trace_spans` → Runs page (Phase 2); own eval harness (Phase 10) |

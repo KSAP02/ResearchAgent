@@ -5,6 +5,7 @@ from typing import TypedDict
 class ResearchState(TypedDict, total=False):
     question: str             # original user question
     queries: list[str]        # focused search queries from the planner
+    rationale: str            # planner's explanation of the queries
     papers: list[dict]        # paper metadata (title, url, arxiv_id, ...)
     passages: list[dict]      # retrieved passages with source references
     analysis: str             # analyst's comparison of findings
@@ -13,3 +14,4 @@ class ResearchState(TypedDict, total=False):
     retry_count: int          # research loops completed so far
     max_retries: int          # hard cap to prevent endless cycles
     report: str               # final cited report
+    warnings: list[str]       # non-fatal problems (e.g. planner fallback)

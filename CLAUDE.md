@@ -32,6 +32,16 @@ phase by phase.
   restart is needed except for fields marked `requires_restart`.
 - **Nodes must call `get_settings()` / `get_llm()` at run time**, never cache
   settings at import; otherwise hot reload won't reach them.
+- **LLM nodes take `(state, config: RunnableConfig)` and pass `config` into
+  every chain `.invoke(...)`** so the TraceRecorder sees nested calls. Name
+  chains with `.with_config(run_name=...)`. Return structured output via
+  Pydantic models in `backend/models.py`; degrade gracefully on LLM errors
+  (append to `warnings`).
+- **Model is a reasoning model** (`gpt-6-luna`): never send `temperature`;
+  `reasoning_effort` ∈ none/low/medium/high/xhigh. `llm.py` handles this via
+  `[llm].model_kind`.
+- **Schema changes = a new entry in `MIGRATIONS`** (never edit an applied one)
+  + update `MD_files/database.md`.
 - **System vs user settings:** system hyperparameters → `config/config.toml`
   (Admin page). Per-user preferences → `backend/user_settings.py` models,
   stored in SQLite (Settings page). Mark preferences that a later phase wires
@@ -39,8 +49,11 @@ phase by phase.
 - **New pages:** add a route in `frontend/src/App.tsx` and an entry in
   `MAIN_NAV`/`BOTTOM_NAV` in `frontend/src/components/Sidebar.tsx`. Use the
   CSS tokens in `styles.css` (matte palette, light/dark); no new colour literals.
-- Secrets live in `.env` (OpenAI, LangSmith, optional Semantic Scholar). Never
-  read or print `.env` values.
+- Secrets live in `.env` (OpenAI; optional Semantic Scholar). Never read or
+  print `.env` values.
+- **No LangSmith** (user decision): observability = our own LangChain
+  callback handler → SQLite `trace_spans` → Runs page. Keep
+  `LANGSMITH_TRACING=false`.
 - **Purpose: the user is learning LangGraph/LangChain by building this.** Use
   the framework's own abstractions (not hand-rolled equivalents) and explain
   the concepts as we go. This is for understanding, not a showcase.
@@ -62,7 +75,7 @@ phase by phase.
 | Vector DB  | Milvus Lite: `/data/milvus.db` in volume `research_data` |
 | SQL DB     | SQLite: `/data/app.db` in volume `research_data` |
 | Frontend   | React + TypeScript + Vite, served by nginx (proxies `/api` to the backend) |
-| LLM        | OpenAI `gpt-4.1-mini` via `langchain-openai` (`ChatOpenAI`) |
+| LLM        | OpenAI `gpt-6-luna` (reasoning model: `reasoning_effort`, no custom temperature) via `langchain-openai` `ChatOpenAI` |
 | Embeddings | OpenAI `text-embedding-3-small`, 1536-dim (`OpenAIEmbeddings`) |
 | Tuning     | `config/config.toml` (all hyperparameters, two-way synced with the Admin page); secrets in `.env` |
 
@@ -99,21 +112,26 @@ The checker loops back to the researcher until the evidence is sufficient or
 | `backend/graph/workflow.py` | `build_graph()`, `route_after_check()` |
 | `backend/agents/*.py` | One file per node |
 | `backend/tools/*.py` | arXiv search, PDF extraction, vector retrieval |
-| `backend/db/sqlite.py` | Tables `research_runs`, `user_settings` |
+| `backend/db/sqlite.py` | `MIGRATIONS` + `schema_version`; tables `research_runs`, `trace_spans`, `user_settings` (see `MD_files/database.md`) |
+| `backend/tracing/recorder.py` | `TraceRecorder` callback handler: every graph/node/chain/LLM/tool span → `trace_spans` (tokens incl. reasoning, invocation params, errors) |
+| `backend/routers/runs.py` | Creates the run row, invokes the graph with `config={"callbacks": [TraceRecorder]}`, finishes the run (status, tokens, cost); runs + trace endpoints |
+| `backend/models.py` | Structured-output schemas (`ResearchPlan`) |
+| `backend/agents/planner.py` | Real planner: `ChatPromptTemplate \| get_llm().with_structured_output(ResearchPlan)`, fallback to the raw question |
 | `backend/db/vector_store.py` | Milvus client; collection `paper_passages` (dim from `[embeddings].dimension`, 1536) |
 | `frontend/src/api/client.ts` | Typed client for `/api/*` (`api.*`, `ApiError` with field errors) |
 | `frontend/src/styles.css` | Design tokens (matte light/dark), layout, components |
 | `frontend/src/components/` | `Sidebar` (nav config), `FieldInput` (renders a backend-described field), `Icons` |
 | `frontend/src/context/UserSettings.tsx` | Loads user prefs, applies theme/font/density to `<html>`, optimistic updates |
-| `frontend/src/pages/` | `Home` (question bar + result), `Admin` (config editor, 4 s poll + focus refresh, save bar), `Settings` (auto-save) |
+| `frontend/src/pages/` | `Home` (question bar, plan, View trace link), `Runs` (stat tiles + table), `RunDetail` (plan, trace tree, report, config snapshot), `Admin` (config editor; `visible_when` fields), `Settings` (auto-save) |
+| `frontend/src/components/TraceTree.tsx` | Span tree + timing bars; click a span for prompt/response/params |
 
-API: `GET /api/health`, `GET /api/config` (active non-secret config), `GET/PUT /api/admin/config`, `GET/PUT /api/user/settings`, `POST /api/research`, `GET /api/runs`.
+API: `GET /api/health` (incl. schema_version), `GET /api/config`, `GET/PUT /api/admin/config`, `GET/PUT /api/user/settings`, `POST /api/research` (traced), `GET /api/runs` (`{runs, stats}`), `GET /api/runs/{id}`, `GET /api/runs/{id}/trace`.
 
 ## Progress (phases from `MD_files/build_plan.md`)
 
 - [x] Phase 0: Scaffold (FastAPI, stub graph, Milvus Lite + SQLite, React/TS, compose, `config.toml`)
 - [x] Phase 1: UI shell (matte, sidebar, Home bar), Admin page with two-way `config.toml` sync, user Settings
-- [ ] Phase 2: LangChain fundamentals + LangSmith tracing (planner)
+- [x] Phase 2: LangChain fundamentals + own tracing via callbacks, Runs page (planner)
 - [ ] Phase 3: Tools & tool calling (arXiv researcher agent)
 - [ ] Phase 4: State reducers + `Send` fan-out
 - [ ] Phase 5: Retrieval stack (loaders, splitters, embeddings, langchain-milvus)
@@ -171,3 +189,17 @@ API: `GET /api/health`, `GET /api/config` (active non-secret config), `GET/PUT /
   `research_runs` columns, Milvus Phase 5 fields, `checkpoints.db`) and
   `MD_files/build_phases/` with records for Phases 0 and 1. The scaffold recipe
   now includes the `MD_files/` docs layout.
+- **2026-11-18**: Decided not to use LangSmith. Phase 2 now builds our own
+  tracing (LangChain callbacks → `trace_spans` → Runs page with a trace tree,
+  tokens and cost) alongside the real planner; Phase 10 uses our own eval harness.
+  Updated `build_plan.md` and `database.md`. OpenAI key confirmed visible to the backend.
+- **2026-11-18**: **Phase 2 done.** Real planner (`ChatPromptTemplate |
+  ChatOpenAI.with_structured_output(ResearchPlan)`, fallback on error) on
+  `gpt-6-luna`. Admin: `[llm].model_kind` (reasoning → `reasoning_effort`;
+  standard → `temperature`, hidden otherwise via `visible_when`), max_tokens
+  8000, new `[pricing]` and `[tracing]` sections. Own tracing: `TraceRecorder`
+  callback handler → `trace_spans`; migration system (`schema_version`,
+  migration 2). Runs page (stat tiles, table) + RunDetail (trace tree with
+  timing bars, prompt/response/params per span, config snapshot). Experiments
+  recorded in `learning_notes.md`. Tested in Docker: migration on the existing DB,
+  6 real runs, planner fallback with a bad model name, screenshots.

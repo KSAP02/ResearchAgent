@@ -38,10 +38,19 @@ class LLMConfig(BaseModel):
     """Chat model used by every LLM node."""
 
     provider: Literal["openai"] = Field("openai", description="LLM provider.")
-    model: str = Field("gpt-4.1-mini", description="OpenAI chat model, e.g. gpt-4.1-mini or gpt-4.1.")
-    temperature: float = Field(0.2, ge=0, le=2, description="Higher = more varied queries and analysis.",
-                               json_schema_extra={"step": 0.1})
-    max_tokens: int = Field(2000, ge=64, le=32000, description="Max output tokens per LLM call.")
+    model: str = Field("gpt-6-luna", description="OpenAI chat model name, e.g. gpt-6-luna.")
+    model_kind: Literal["reasoning", "standard"] = Field(
+        "reasoning",
+        description="Reasoning models take a reasoning effort and reject custom temperature; "
+                    "standard models take a temperature.",
+        json_schema_extra={"label": "Model type"})
+    reasoning_effort: Literal["none", "low", "medium", "high", "xhigh"] = Field(
+        "medium", description="How much the model thinks before answering. Higher = slower, more tokens.",
+        json_schema_extra={"visible_when": {"model_kind": "reasoning"}})
+    temperature: float = Field(0.2, ge=0, le=2, description="Higher = more varied output (standard models only).",
+                               json_schema_extra={"step": 0.1, "visible_when": {"model_kind": "standard"}})
+    max_tokens: int = Field(8000, ge=64, le=64000,
+                            description="Max output tokens per LLM call. Reasoning tokens count towards this limit.")
     timeout_s: int = Field(60, ge=5, le=600, description="Per-request timeout.", json_schema_extra={"label": "Timeout (s)"})
     max_retries: int = Field(2, ge=0, le=10, description="API-level retries on transient errors.", json_schema_extra={"label": "API retries"})
 
@@ -108,6 +117,25 @@ class ReportConfig(BaseModel):
     max_citations: int = Field(15, ge=1, le=100, description="Maximum citations in the final report.")
 
 
+class PricingConfig(BaseModel):
+    """Token prices for cost estimates on the Runs page (USD per 1M tokens, for the model above)."""
+
+    input_per_1m: float = Field(0.0, ge=0, le=1000, description="Price per 1M input tokens. 0 = cost not shown.",
+                                json_schema_extra={"label": "Input $ / 1M tokens", "step": 0.01})
+    output_per_1m: float = Field(0.0, ge=0, le=1000,
+                                 description="Price per 1M output tokens (reasoning tokens are billed as output).",
+                                 json_schema_extra={"label": "Output $ / 1M tokens", "step": 0.01})
+
+
+class TracingConfig(BaseModel):
+    """Our own run tracing (LangChain callbacks -> trace_spans table -> Runs page)."""
+
+    enabled: bool = Field(True, description="Record a trace span for every node, chain and LLM call.")
+    max_payload_chars: int = Field(6000, ge=200, le=200000,
+                                   description="Truncate stored span inputs/outputs to this many characters.",
+                                   json_schema_extra={"label": "Max payload chars"})
+
+
 class StorageConfig(BaseModel):
     """Database file and collection names (inside DATA_DIR)."""
 
@@ -126,6 +154,8 @@ SECTION_MODELS: dict[str, type[BaseModel]] = {
     "retrieval": RetrievalConfig,
     "evidence": EvidenceConfig,
     "report": ReportConfig,
+    "pricing": PricingConfig,
+    "tracing": TracingConfig,
     "storage": StorageConfig,
 }
 
@@ -152,6 +182,8 @@ class Settings(BaseSettings):
     retrieval: RetrievalConfig = RetrievalConfig()
     evidence: EvidenceConfig = EvidenceConfig()
     report: ReportConfig = ReportConfig()
+    pricing: PricingConfig = PricingConfig()
+    tracing: TracingConfig = TracingConfig()
     storage: StorageConfig = StorageConfig()
 
     @classmethod

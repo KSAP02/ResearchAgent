@@ -9,8 +9,10 @@
 [llm]
 provider = "openai"
 model = "gpt-6-luna"
-temperature = 0.2          # higher = more varied queries/analysis
-max_tokens = 2000
+model_kind = "reasoning"   # reasoning | standard
+reasoning_effort = "medium" # none | low | medium | high | xhigh (reasoning models)
+temperature = 0.2          # standard models only; never sent to reasoning models
+max_tokens = 8000          # reasoning tokens count towards this
 timeout_s = 60
 max_retries = 2            # API-level retries on transient errors
 
@@ -47,6 +49,14 @@ min_supported_ratio = 0.7  # share of claims that must be supported to pass
 
 [report]
 max_citations = 15
+
+[pricing]                  # USD per 1M tokens for [llm].model; 0 = cost not shown
+input_per_1m = 0.0
+output_per_1m = 0.0
+
+[tracing]
+enabled = true             # record spans for every node/chain/LLM call (Runs page)
+max_payload_chars = 6000   # truncate stored span inputs/outputs
 
 [storage]
 sqlite_filename = "app.db"

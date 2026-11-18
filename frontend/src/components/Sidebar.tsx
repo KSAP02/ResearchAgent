@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
-import { AdminIcon, HomeIcon, PanelIcon, SlidersIcon } from "./Icons";
+import { AdminIcon, HomeIcon, PanelIcon, RunsIcon, SlidersIcon } from "./Icons";
 
 interface NavItem {
   to: string;
@@ -9,7 +9,10 @@ interface NavItem {
 }
 
 // Add new pages here: they appear in the sidebar automatically.
-const MAIN_NAV: NavItem[] = [{ to: "/", label: "Home", icon: <HomeIcon /> }];
+const MAIN_NAV: NavItem[] = [
+  { to: "/", label: "Home", icon: <HomeIcon /> },
+  { to: "/runs", label: "Runs", icon: <RunsIcon /> },
+];
 
 const BOTTOM_NAV: NavItem[] = [
   { to: "/settings", label: "Settings", icon: <SlidersIcon /> },

@@ -25,7 +25,15 @@ export default function Settings() {
             {section.description && <p>{section.description}</p>}
           </div>
           <div className="fields">
-            {section.fields.map((f) => (
+            {section.fields
+              .filter(
+                (f) =>
+                  !f.visible_when ||
+                  Object.entries(f.visible_when).every(
+                    ([k, v]) => String(state.values[section.key]?.[k]) === String(v),
+                  ),
+              )
+              .map((f) => (
               <FieldInput
                 key={`${section.key}.${f.key}`}
                 field={f}

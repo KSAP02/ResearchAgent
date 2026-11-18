@@ -16,7 +16,7 @@ Status legend: ✅ **live** (exists now) · 🟡 **planned** (proposed; finalise
 | SQLite `checkpoints.db` | `/data/checkpoints.db` | LangGraph checkpoints (workflow state per step) | 🟡 Phase 7 |
 | `config/config.toml` | bind-mounted `./config` | System hyperparameters | ✅ |
 | `.env` | host only | Secrets (API keys) | ✅ |
-| LangSmith | cloud | Traces, evaluation datasets and results | ⚪ Phase 2 / 10 |
+| ~~LangSmith~~ | (not used) | Replaced by our own `trace_spans` + eval tables | — |
 
 **Why separate `checkpoints.db`?** Checkpoints are *workflow state* managed by
 LangGraph (its own schema and growth pattern); `app.db` is *application data*
@@ -75,11 +75,10 @@ erDiagram
 
 ## 3. SQLite `app.db`
 
-### 3.1 `research_runs` ✅ live (columns to be extended)
+### 3.1 `research_runs` ✅ live (migration 2)
 
-One row per research question asked.
-
-**Current schema (Phase 0):**
+One row per research question asked. Created as `running` before the graph
+starts (so trace spans can reference it), then finished as `completed` / `failed`.
 
 ```sql
 CREATE TABLE research_runs (
@@ -89,21 +88,28 @@ CREATE TABLE research_runs (
     retry_count         INTEGER,            -- research loops taken
     evidence_sufficient INTEGER,            -- 0/1
     papers_json         TEXT,               -- list of paper dicts (temporary, see below)
-    created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
+    -- migration 2 (Phase 2)
+    status              TEXT NOT NULL DEFAULT 'completed', -- running | completed | failed (+ interrupted, Phase 8)
+    config_json         TEXT,               -- snapshot of all config sections used (no secrets)
+    queries_json        TEXT,               -- planner output
+    rationale           TEXT,               -- planner's explanation
+    duration_ms         INTEGER,            -- wall-clock run time
+    total_tokens        INTEGER,            -- input + output tokens over all LLM spans
+    est_cost_usd        REAL,               -- from [pricing]; NULL when prices are 0
+    error               TEXT,               -- failure message
+    updated_at          TEXT
 );
 ```
 
-**Planned additions:**
+Rows from before migration 2 keep `status='completed'` and NULLs in the new columns.
+
+**Still planned:**
 
 | Column | Type | Phase | Why |
 |--------|------|-------|-----|
-| `config_json` | TEXT | 2 | Snapshot of `config.toml` used for the run, so experiments can be compared |
-| `queries_json` | TEXT | 2 | Planner output |
-| `status` | TEXT | 7–9 | `running` / `interrupted` / `completed` / `failed` |
 | `thread_id` | TEXT UNIQUE | 7 | Links the run to its LangGraph checkpoint thread |
-| `error` | TEXT | 7 | Failure message, for resume |
 | `report_json` | TEXT | 10 | Structured `Report` (sections, references) |
-| `updated_at` | TEXT | 7 | Last state change |
 
 `papers_json` is replaced by the `run_papers` table in Phase 3 and then dropped.
 
@@ -170,10 +176,42 @@ CREATE TABLE run_papers (
 );
 ```
 
-### 3.5 `run_events` ❔ undecided (Phase 9)
+### 3.5 `trace_spans` ✅ live (migration 2)
 
-Node-level progress log for the UI timeline. Might not be needed if the
-checkpointer (Phase 7) and streaming (Phase 9) cover it. We'll decide in Phase 9.
+Our own tracing, written by `backend/tracing/recorder.py` (`TraceRecorder`, a LangChain
+callback handler). One row per graph / node / chain / LLM / tool / retriever call;
+`parent_span_id` builds the tree. Rows are inserted on *start* (`status='running'`) and
+updated on *end*, so a run in progress can be inspected. LangGraph's internal plumbing
+runs (tagged `langsmith:hidden`) are skipped and their children re-parented.
+
+```sql
+CREATE TABLE trace_spans (
+    span_id           TEXT PRIMARY KEY,     -- LangChain run_id (UUID)
+    run_id            INTEGER NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+    parent_span_id    TEXT,                 -- LangChain parent_run_id; NULL = root
+    name              TEXT NOT NULL,        -- e.g. "planner", "ChatOpenAI", "search_arxiv"
+    span_type         TEXT NOT NULL,        -- graph | node | chain | llm | tool | retriever
+    status            TEXT NOT NULL,        -- running | ok | error
+    -- (FK enforced: PRAGMA foreign_keys = ON)
+    started_at        TEXT NOT NULL,        -- ISO-8601 UTC, ms precision
+    ended_at          TEXT,
+    duration_ms       INTEGER,
+    inputs_json       TEXT,                 -- truncated to [tracing].max_payload_chars
+    outputs_json      TEXT,
+    error             TEXT,
+    model             TEXT,                 -- llm spans only
+    prompt_tokens     INTEGER,
+    completion_tokens INTEGER,              -- includes reasoning tokens
+    reasoning_tokens  INTEGER,              -- reasoning models only
+    metadata_json     TEXT                  -- tags, langgraph_node/step/triggers, invocation_params (llm)
+);
+CREATE INDEX idx_trace_spans_run ON trace_spans(run_id, started_at);
+```
+
+### 3.6 `run_events` ❔ undecided (Phase 9)
+
+Node-level progress log for the UI timeline. Probably not needed: `trace_spans`
+(Phase 2) plus streaming (Phase 9) should cover it. We'll decide in Phase 9.
 
 ```sql
 -- sketch only
@@ -240,18 +278,19 @@ example "papers this user already knows"). Decide then.
 
 | Data | Where |
 |------|-------|
-| LLM traces, token usage, latency | LangSmith (Phase 2+) |
-| Evaluation datasets + scores | LangSmith (Phase 10) |
 | Original PDFs | Not kept; downloaded, chunked, then discarded (only chunks are stored) |
 
 ---
 
 ## 7. Conventions
 
-- **Migrations:** today tables are created with `CREATE TABLE IF NOT EXISTS` in
-  `backend/db/sqlite.py`. The first column change (Phase 2, `config_json`) brings in a
-  lightweight migration step: a `schema_version` table + ordered `ALTER TABLE`
-  steps run at startup. No Alembic unless this grows.
+- **Migrations:** `MIGRATIONS` in `backend/db/sqlite.py` is an ordered list of
+  `(version, description, [SQL])`, applied once at startup and recorded in
+  `schema_version(version, description, applied_at)`. Never edit an applied
+  migration; append a new one. `/api/health` reports the current version.
+  Applied: 1 = base tables, 2 = Phase 2 run metadata + `trace_spans`.
+- **Connection settings:** `PRAGMA journal_mode=WAL` (reads while a run writes spans),
+  `PRAGMA foreign_keys=ON`, 10 s busy timeout.
 - **Timestamps:** UTC, ISO-8601 text (`CURRENT_TIMESTAMP`).
 - **JSON columns:** `*_json` suffix; always validated through a Pydantic model on read.
 - **IDs:** runs = integer autoincrement; papers = arXiv ID without the version;
@@ -268,3 +307,5 @@ example "papers this user already knows"). Decide then.
 | 2026-11-18 | Phase 0: `research_runs`; Milvus `paper_passages` (384-dim, later 1536-dim, empty) |
 | 2026-11-18 | Phase 1: `user_settings` table (JSON prefs) |
 | 2026-11-18 | Documented planned schema: `papers`, `run_papers`, `research_runs` additions, Milvus Phase 5 fields, `checkpoints.db` |
+| 2026-11-18 | Decided: no LangSmith. Planned `trace_spans` (Phase 2) + `research_runs` status/duration/tokens/cost columns |
+| 2026-11-18 | **Migration 2 (Phase 2), live:** `schema_version` table; `research_runs` + status, config_json, queries_json, rationale, duration_ms, total_tokens, est_cost_usd, error, updated_at; `trace_spans` (+ `reasoning_tokens`) with index on (run_id, started_at); WAL + foreign keys on |

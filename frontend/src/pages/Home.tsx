@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { Link } from "react-router-dom";
 import { api, type ResearchResponse } from "../api/client";
 import { ArrowUpIcon } from "../components/Icons";
+import { fmtCompact, fmtCost, fmtMs } from "../format";
 
 const EXAMPLES = [
   "Recent approaches to improving retrieval accuracy in Graph RAG",
@@ -93,7 +95,7 @@ export default function Home() {
 
         {loading && (
           <div className="thinking">
-            <span className="dot" /> Researching...
+            <span className="dot" /> Planning and researching...
           </div>
         )}
 
@@ -107,19 +109,30 @@ export default function Home() {
           <div className="result">
             <div className="meta">
               <span>Run #{result.run_id}</span>
+              <span>{fmtMs(result.duration_ms)}</span>
+              <span>{fmtCompact(result.total_tokens)} tokens</span>
+              {result.est_cost_usd != null && <span>{fmtCost(result.est_cost_usd)}</span>}
               <span>Research loops: {result.retry_count}</span>
-              <span>Evidence: {result.evidence_sufficient ? "sufficient" : "insufficient"}</span>
-              <span>{result.papers.length} sources</span>
+              <Link to={`/runs/${result.run_id}`} className="link">
+                View trace →
+              </Link>
             </div>
+            {result.warnings.map((w) => (
+              <div key={w} className="banner warn">
+                {w}
+              </div>
+            ))}
             <div className="card">
-              <h3>Search queries</h3>
-              <ol>
+              <h3>Research plan</h3>
+              {result.rationale && <p className="rationale">{result.rationale}</p>}
+              <ol className="queries">
                 {result.queries.map((q) => (
                   <li key={q}>{q}</li>
                 ))}
               </ol>
             </div>
             <div className="card">
+              <h3>Report (later nodes are still stubs)</h3>
               <pre className="report">{result.report}</pre>
             </div>
           </div>

@@ -48,6 +48,13 @@ export const PanelIcon = () => (
   </Svg>
 );
 
+export const RunsIcon = () => (
+  <Svg>
+    <path d="M4 6h16M4 12h10M4 18h13" />
+    <circle cx="19" cy="12" r="1.6" />
+  </Svg>
+);
+
 export const ArrowUpIcon = () => (
   <Svg>
     <path d="M12 19V5M6 11l6-6 6 6" />
