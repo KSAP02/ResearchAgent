@@ -8,15 +8,19 @@ what we actually observed in this project (run numbers refer to the Runs page).
 
 ## How it all fits together (visual guide)
 
-Images live in `MD_files/images/` (SVG; they open in any browser and show in
-VS Code's Markdown preview). The Mermaid blocks render on GitHub; in VS Code
-install a Mermaid preview extension to see them as diagrams.
+> **How to view this file with the pictures:** in VS Code press **Ctrl+Shift+V**
+> (or right-click the file → *Open Preview*). The editor view only shows the raw
+> `![...](images/...)` links. Every diagram below is an **image** (SVG in
+> `MD_files/images/`), so it shows in the preview, on GitHub, and in any browser.
+> Each one also has a collapsed *Mermaid version* (text that GitHub draws as a
+> flowchart); you can ignore those unless you want to edit a diagram as text.
 
 ### 1. The pipeline: graph nodes, the loop, shared state, storage
 
 ![Research pipeline](images/pipeline_overview.svg)
 
-The same graph as a flowchart (this is literally what `graph/workflow.py` builds):
+<details>
+<summary>Mermaid version (text diagram; renders on GitHub)</summary>
 
 ```mermaid
 flowchart LR
@@ -33,6 +37,8 @@ flowchart LR
     class P real;
     class R,RT,A,W stub;
 ```
+
+</details>
 
 How to read it:
 - **Boxes are nodes.** Each is a Python function `(state, config) -> partial update`.
@@ -60,6 +66,10 @@ How to read it:
 
 ### 3. How the state grows as it flows through the nodes
 
+![How the shared state grows](images/state_flow.svg)
+
+The same steps as a table:
+
 | After node | Keys written (✚ new, ✎ updated) | Example values (run 8) |
 |------------|----------------------------------|------------------------|
 | *input* | ✚ `question`, `retry_count=0`, `max_retries=2` | "What are the recent approaches…" |
@@ -80,6 +90,9 @@ passes the whole state to the next node. (Phase 4 adds **reducers**, which say
 
 ![Planner chain](images/planner_chain.svg)
 
+<details>
+<summary>Mermaid version (text diagram; renders on GitHub)</summary>
+
 ```mermaid
 flowchart TD
     I["{question, num_queries}"] --> T[ChatPromptTemplate]
@@ -90,9 +103,14 @@ flowchart TD
     N -->|"{queries, rationale}"| ST[(ResearchState)]
 ```
 
+</details>
+
 ### 5. How tracing works: one handler, every nested call
 
 ![Callbacks tree](images/callbacks_tree.svg)
+
+<details>
+<summary>Mermaid version (text diagram; renders on GitHub)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -116,7 +134,14 @@ sequenceDiagram
     G-->>R: on_chain_end(id=A)
 ```
 
+</details>
+
 ### 6. Configuration: one file, two editors, read at run time
+
+![Configuration flow](images/config_flow.svg)
+
+<details>
+<summary>Mermaid version (text diagram; renders on GitHub)</summary>
 
 ```mermaid
 flowchart LR
@@ -128,6 +153,8 @@ flowchart LR
     S -->|"snapshot per run"| DB[(research_runs.config_json)]
     U[Settings page] -->|"per-user prefs"| UDB[(user_settings)]
 ```
+
+</details>
 
 Why it matters: because nodes read settings **when they run**, a change on the
 Admin page applies to the very next run, and every run stores the exact

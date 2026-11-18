@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6E6A63"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F8572"/>
+    </marker>
+  </defs>
+  <rect width="960" height="470" rx="14" fill="#F5F4F1"/>
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">Configuration: one file, two editors, read at run time</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">System hyperparameters live in one file; nodes read them when they run, and each run keeps a snapshot.</text>
+
+  <!-- editors -->
+  <rect x="30" y="100" width="190" height="56" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="125" y="124" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">Admin page</text>
+  <text x="125" y="143" font-size="12" text-anchor="middle" fill="#6E6A63">form built from the schema</text>
+  <rect x="30" y="196" width="190" height="56" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="125" y="220" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">Your editor</text>
+  <text x="125" y="239" font-size="12" text-anchor="middle" fill="#6E6A63">VS Code, Notepad, …</text>
+
+  <!-- file -->
+  <rect x="300" y="128" width="200" height="92" rx="12" fill="#DDE3DC" stroke="#6F8572" stroke-width="2"/>
+  <text x="400" y="160" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">settings/config.toml</text>
+  <text x="400" y="180" font-size="12" text-anchor="middle" fill="#4E5F51">[llm] [planner] [research]</text>
+  <text x="400" y="197" font-size="12" text-anchor="middle" fill="#4E5F51">[retrieval] [evidence] …</text>
+
+  <!-- arrows editors <-> file -->
+  <line x1="220" y1="120" x2="296" y2="148" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="300" y1="160" x2="224" y2="134" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="236" y="104" font-size="11" fill="#6E6A63">save (tomlkit,</text>
+  <text x="236" y="117" font-size="11" fill="#6E6A63">keeps comments)</text>
+  <text x="226" y="172" font-size="11" fill="#6E6A63">poll mtime</text>
+  <line x1="220" y1="224" x2="296" y2="200" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="236" y="240" font-size="11" fill="#6E6A63">save</text>
+
+  <!-- get_settings -->
+  <line x1="500" y1="174" x2="566" y2="174" stroke="#6F8572" stroke-width="1.8" marker-end="url(#g)"/>
+  <rect x="570" y="128" width="170" height="92" rx="12" fill="#FFFFFF" stroke="#6F8572" stroke-width="1.6"/>
+  <text x="655" y="160" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">get_settings()</text>
+  <text x="655" y="180" font-size="12" text-anchor="middle" fill="#6E6A63">reloads when the</text>
+  <text x="655" y="196" font-size="12" text-anchor="middle" fill="#6E6A63">file's mtime changes</text>
+
+  <!-- consumers -->
+  <line x1="740" y1="150" x2="796" y2="112" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="740" y1="174" x2="796" y2="180" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="740" y1="198" x2="796" y2="248" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="800" y="86" width="140" height="50" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="870" y="107" font-size="13" font-weight="600" text-anchor="middle" fill="#2A2A28">get_llm()</text>
+  <text x="870" y="124" font-size="11" text-anchor="middle" fill="#6E6A63">model, reasoning effort</text>
+  <rect x="800" y="154" width="140" height="50" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="870" y="175" font-size="13" font-weight="600" text-anchor="middle" fill="#2A2A28">graph nodes</text>
+  <text x="870" y="192" font-size="11" text-anchor="middle" fill="#6E6A63">num_queries, top_k…</text>
+  <rect x="800" y="222" width="140" height="50" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="870" y="243" font-size="13" font-weight="600" text-anchor="middle" fill="#2A2A28">run snapshot</text>
+  <text x="870" y="260" font-size="11" text-anchor="middle" fill="#6E6A63">research_runs.config_json</text>
+
+  <!-- user settings lane -->
+  <line x1="30" y1="306" x2="930" y2="306" stroke="#D4D0C9" stroke-dasharray="4 4"/>
+  <text x="30" y="332" font-size="14" font-weight="600" fill="#2A2A28">Separate: per-user preferences</text>
+  <rect x="30" y="348" width="190" height="56" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="125" y="372" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">Settings page</text>
+  <text x="125" y="391" font-size="12" text-anchor="middle" fill="#6E6A63">auto-saves each change</text>
+  <line x1="220" y1="376" x2="296" y2="376" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="300" y="348" width="200" height="56" rx="10" fill="#FFFFFF" stroke="#D4D0C9"/>
+  <text x="400" y="372" font-size="14" font-weight="600" text-anchor="middle" fill="#2A2A28">SQLite user_settings</text>
+  <text x="400" y="391" font-size="12" text-anchor="middle" fill="#6E6A63">theme, report length, …</text>
+  <line x1="500" y1="376" x2="566" y2="376" stroke="#6E6A63" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="570" y="348" width="370" height="56" rx="10" fill="#ECEBE7" stroke="#D4D0C9"/>
+  <text x="586" y="372" font-size="13" fill="#2A2A28">Applied in the browser (theme, font, density)</text>
+  <text x="586" y="391" font-size="12" fill="#6E6A63">and by later phases (report length, plan review)</text>
+
+  <text x="30" y="444" font-size="12" fill="#6E6A63">Rule of thumb: if changing it changes someone else's results, it's system config (file); if it only changes your experience, it's a user preference (database).</text>
+</svg>

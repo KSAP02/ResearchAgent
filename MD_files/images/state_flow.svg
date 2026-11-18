@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" width="960" height="700" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6E6A63"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F8572"/>
+    </marker>
+  </defs>
+  <rect width="960" height="700" rx="14" fill="#F5F4F1"/>
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">How the shared state grows, step by step (run 8)</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">Left: the node that ran. Right: the keys it returned. LangGraph merges each partial update into ResearchState.</text>
+
+  <!-- column headers -->
+  <text x="30" y="96" font-size="12" font-weight="600" fill="#9A958D" letter-spacing="1">STEP</text>
+  <text x="250" y="96" font-size="12" font-weight="600" fill="#9A958D" letter-spacing="1">KEYS WRITTEN</text>
+  <text x="560" y="96" font-size="12" font-weight="600" fill="#9A958D" letter-spacing="1">EXAMPLE VALUE</text>
+  <line x1="30" y1="104" x2="930" y2="104" stroke="#D4D0C9"/>
+
+  <g font-size="13">
+    <!-- row template: pill at x=30 w=190; keys at 250; example at 560 -->
+    <!-- 1 input -->
+    <rect x="30" y="116" width="190" height="34" rx="17" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="125" y="138" text-anchor="middle" fill="#2A2A28">input</text>
+    <text x="250" y="138" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ question, retry_count=0, max_retries=2</text>
+    <text x="560" y="138" fill="#6E6A63" font-size="12">"What are the recent approaches … Graph RAG?"</text>
+
+    <!-- 2 planner -->
+    <rect x="30" y="164" width="190" height="34" rx="8" fill="#DDE3DC" stroke="#6F8572" stroke-width="1.6"/>
+    <text x="125" y="186" text-anchor="middle" fill="#2A2A28" font-weight="600">planner (LLM)</text>
+    <text x="250" y="186" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ queries, + rationale</text>
+    <text x="560" y="186" fill="#6E6A63" font-size="12">4 queries, e.g. "GraphRAG query focused subgraph retrieval"</text>
+
+    <!-- 3 researcher -->
+    <rect x="30" y="212" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="234" text-anchor="middle" fill="#2A2A28">researcher</text>
+    <text x="250" y="234" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ papers</text>
+    <text x="560" y="234" fill="#6E6A63" font-size="12">4 papers (stub: one per query)</text>
+
+    <!-- 4 retriever -->
+    <rect x="30" y="260" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="282" text-anchor="middle" fill="#2A2A28">retriever</text>
+    <text x="250" y="282" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ passages</text>
+    <text x="560" y="282" fill="#6E6A63" font-size="12">4 stub passages</text>
+
+    <!-- 5 analyst -->
+    <rect x="30" y="308" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="330" text-anchor="middle" fill="#2A2A28">analyst</text>
+    <text x="250" y="330" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ analysis</text>
+    <text x="560" y="330" fill="#6E6A63" font-size="12">"Compared findings across 4 passages"</text>
+
+    <!-- 6 evidence 1 -->
+    <rect x="30" y="356" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="378" text-anchor="middle" fill="#2A2A28">evidence_checker</text>
+    <text x="250" y="378" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">~ evidence_sufficient=false, + gaps, ~ retry_count=1</text>
+    <text x="560" y="398" fill="#4E5F51" font-size="12" font-weight="600">route_after_check → "researcher"  (1 &lt; 2)</text>
+
+    <!-- loop arrow -->
+    <path d="M 30 373 C 6 395, 6 418, 27 439" fill="none" stroke="#6F8572" stroke-width="1.8" marker-end="url(#g)"/>
+
+    <!-- 7 researcher 2 -->
+    <rect x="30" y="422" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="444" text-anchor="middle" fill="#2A2A28">researcher (again)</text>
+    <text x="250" y="444" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">~ papers (appended)</text>
+    <text x="560" y="444" fill="#6E6A63" font-size="12">5 papers (+1 for the gap query "… evaluation")</text>
+
+    <!-- 8 retriever + analyst -->
+    <rect x="30" y="470" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="492" text-anchor="middle" fill="#2A2A28">retriever → analyst</text>
+    <text x="250" y="492" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">~ passages, ~ analysis</text>
+    <text x="560" y="492" fill="#6E6A63" font-size="12">5 passages, "Compared findings across 5 passages"</text>
+
+    <!-- 9 evidence 2 -->
+    <rect x="30" y="518" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="540" text-anchor="middle" fill="#2A2A28">evidence_checker</text>
+    <text x="250" y="540" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">~ evidence_sufficient=true</text>
+    <text x="560" y="540" fill="#4E5F51" font-size="12" font-weight="600">route_after_check → "report"</text>
+
+    <!-- 10 report -->
+    <rect x="30" y="566" width="190" height="34" rx="8" fill="#ECEBE7" stroke="#9A958D" stroke-dasharray="5 4"/>
+    <text x="125" y="588" text-anchor="middle" fill="#2A2A28">report</text>
+    <text x="250" y="588" fill="#2A2A28" font-family="Consolas, Menlo, monospace" font-size="12">+ report</text>
+    <text x="560" y="588" fill="#6E6A63" font-size="12">markdown report with a Sources list</text>
+
+    <!-- 11 end -->
+    <rect x="30" y="614" width="190" height="34" rx="17" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="125" y="636" text-anchor="middle" fill="#2A2A28">END → FastAPI</text>
+    <text x="250" y="636" fill="#2A2A28" font-size="12">final state saved to research_runs, returned to the browser</text>
+  </g>
+
+  <!-- vertical flow arrows between pills -->
+  <g stroke="#6E6A63" stroke-width="1.4">
+    <line x1="125" y1="150" x2="125" y2="162" marker-end="url(#a)"/>
+    <line x1="125" y1="198" x2="125" y2="210" marker-end="url(#a)"/>
+    <line x1="125" y1="246" x2="125" y2="258" marker-end="url(#a)"/>
+    <line x1="125" y1="294" x2="125" y2="306" marker-end="url(#a)"/>
+    <line x1="125" y1="342" x2="125" y2="354" marker-end="url(#a)"/>
+    <line x1="125" y1="456" x2="125" y2="468" marker-end="url(#a)"/>
+    <line x1="125" y1="504" x2="125" y2="516" marker-end="url(#a)"/>
+    <line x1="125" y1="552" x2="125" y2="564" marker-end="url(#a)"/>
+    <line x1="125" y1="600" x2="125" y2="612" marker-end="url(#a)"/>
+  </g>
+
+  <text x="30" y="680" font-size="12" fill="#6E6A63">Legend: + new key · ~ updated key · green pill = real LLM node · dashed = stub (real in a later phase).</text>
+</svg>
