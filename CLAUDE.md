@@ -219,3 +219,5 @@ API: `GET /api/health` (incl. schema_version), `GET /api/config`, `GET/PUT /api/
   (node code, step-by-step trigger flow, pieces at work) + `images/node_lifecycle.svg`;
   the pipeline image now draws the conditional edge as a diamond. Walkthroughs are now a
   per-phase rule.
+- **2026-11-18**: README: added "Running on another machine" (verified with a fresh
+  clone) and "Making changes: commit and push" sections.

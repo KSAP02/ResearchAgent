@@ -184,3 +184,76 @@ Full plan: [`MD_files/build_plan.md`](MD_files/build_plan.md).
   page; enter your model's prices under Admin → Pricing to see estimated cost.
 - Papers keep their own licences: text is stored as chunks for personal research and quoted
   with citations, never republished.
+
+---
+
+## Running on another machine
+
+Verified with a fresh clone: the images build, the database is created on first start, and every page loads.
+
+1. Install **Docker Desktop** (includes Docker Compose; v2.24 or newer is required).
+2. Clone the repo and create your `.env`:
+   ```bash
+   git clone https://github.com/KSAP02/ResearchAgent.git
+   cd ResearchAgent
+   cp .env.example .env          # Windows PowerShell: copy .env.example .env
+   ```
+3. Open `.env` and set your key. It's the only required value:
+   ```env
+   OPENAI_API_KEY=sk-...
+   ```
+4. Build and start:
+   ```bash
+   docker compose up -d --build
+   ```
+5. Open **http://localhost:3000** (API docs at http://localhost:8000/docs).
+
+**Good to know**
+- **Data stays on the machine that created it.** Runs, traces and user settings live in a
+  Docker volume (`research_data`), not in git, so a new machine starts with an empty Runs page.
+  Hyperparameters in `settings/config.toml` *are* in git and come along.
+- **Model access:** the default model (`gpt-6-luna`) must be available to your OpenAI account.
+  If it isn't, change `[llm].model` on the Admin page (or in `settings/config.toml`).
+- **Without a key** the app still runs: the planner falls back to your question and shows a warning.
+- Useful commands:
+  ```bash
+  docker compose logs -f backend      # backend logs
+  docker compose restart backend      # after changing .env or a "restart" setting
+  docker compose down                 # stop (keeps data)
+  docker compose down -v              # stop and delete all stored data
+  ```
+
+---
+
+## Making changes: commit and push
+
+Work on one machine at a time and keep both in sync through GitHub.
+
+```bash
+# 1. Start from the latest version
+git pull origin main
+
+# 2. Make your changes, then rebuild and check them in Docker
+docker compose up -d --build
+curl localhost:3000/api/health
+
+# 3. Review what changed (make sure .env is NOT listed; it's git-ignored)
+git status
+git diff
+
+# 4. Commit with a message that says what and why
+git add -A
+git commit -m "Short summary of the change"
+
+# 5. Push to GitHub
+git push origin main
+```
+
+**Tips**
+- Always `git pull` before starting on a different machine, so the two copies don't drift apart.
+- Never commit `.env` or anything under `data_warehouse/`. Both are in `.gitignore`;
+  `git status` should never show them.
+- Changes made on the **Admin** page are written to `settings/config.toml`, so they show up
+  in `git status` too. Commit them if you want the new settings on other machines.
+- If `git push` is rejected because GitHub has newer commits, run `git pull origin main`,
+  resolve any conflicts, then push again.
