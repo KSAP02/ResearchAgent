@@ -1,50 +1,53 @@
-import { useState } from "react";
-import { runResearch, type ResearchResponse } from "./api/client";
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import { useUserSettings } from "./context/UserSettings";
+import Admin from "./pages/Admin";
+import Home from "./pages/Home";
+import Settings from "./pages/Settings";
+
+const COLLAPSE_KEY = "sidebar-collapsed";
+
+function readCollapsed(): boolean | null {
+  try {
+    const v = localStorage.getItem(COLLAPSE_KEY);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
-  const [question, setQuestion] = useState("");
-  const [result, setResult] = useState<ResearchResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { state } = useUserSettings();
+  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsed() ?? false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      setResult(await runResearch(question));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
+  // If the user never toggled on this device, follow their saved preference.
+  useEffect(() => {
+    if (readCollapsed() === null && state) setCollapsed(Boolean(state.values.appearance?.sidebar_collapsed));
+  }, [state]);
+
+  function toggle() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, c ? "0" : "1");
+      } catch {
+        /* storage unavailable */
+      }
+      return !c;
+    });
   }
 
   return (
-    <main style={{ maxWidth: 800, margin: "2rem auto", padding: "0 1rem", fontFamily: "system-ui" }}>
-      <h1>Agentic Research Assistant</h1>
-      <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a technical research question..."
-          style={{ flex: 1, padding: 8 }}
-        />
-        <button disabled={loading || question.trim().length < 3}>
-          {loading ? "Researching..." : "Run"}
-        </button>
-      </form>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      {result && (
-        <section>
-          <p>
-            Run #{result.run_id} · Retries: {result.retry_count} · Evidence sufficient:{" "}
-            {String(result.evidence_sufficient)}
-          </p>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{result.report}</pre>
-        </section>
-      )}
-    </main>
+    <div className="app">
+      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <main className="main">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }

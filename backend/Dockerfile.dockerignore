@@ -1,0 +1,13 @@
+# Build context is the repo root (so requirements.txt at root is visible).
+# Only requirements.txt and backend/ are needed; exclude everything else.
+**/__pycache__/
+**/*.pyc
+.git/
+.env
+ra_venv/
+.venv/
+venv/
+frontend/
+data_warehouse/
+MD_files/
+*.md

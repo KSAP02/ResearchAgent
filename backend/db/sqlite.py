@@ -1,4 +1,4 @@
-"""SQLite store for research runs (stdlib sqlite3, no ORM yet)."""
+"""SQLite store for research runs and user settings (stdlib sqlite3, no ORM yet)."""
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS research_runs (
     evidence_sufficient INTEGER,
     papers_json TEXT,
     created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id    TEXT PRIMARY KEY,
+    data_json  TEXT NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
 
@@ -52,3 +58,18 @@ def list_runs(limit: int = 20) -> list[dict]:
             (limit,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def load_user_settings(user_id: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT data_json FROM user_settings WHERE user_id = ?", (user_id,)).fetchone()
+    return json.loads(row["data_json"]) if row else None
+
+
+def save_user_settings(user_id: str, data: dict) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO user_settings (user_id, data_json, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)"
+            " ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = CURRENT_TIMESTAMP",
+            (user_id, json.dumps(data)),
+        )
