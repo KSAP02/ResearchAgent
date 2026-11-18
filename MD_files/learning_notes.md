@@ -1,7 +1,10 @@
 # Learning Notes
 
 One section per phase: the concept, how we used it, what the experiments
-showed, and answers to the phase's "Think about" questions. Answers are based on
+showed, and answers to the phase's "Think about" questions. Each phase also has a
+**Workflow walkthrough**: what the phase delivered, which pieces are at work,
+what the code looks like, and what happens step by step when you press Run,
+explained with this project's own examples. Answers are based on
 what we actually observed in this project (run numbers refer to the Runs page).
 
 ---
@@ -177,6 +180,37 @@ the form, the validation and the file format from that one description.
 - Live sync: mtime-checked hot reload; mount the *directory* because single-file
   bind mounts go stale when an editor saves by replacing the file.
 
+### Workflow walkthrough (Phase 1)
+
+**Outcome in one sentence:** the app got its shell (sidebar, Home, Settings,
+Admin) and a control panel, so every later experiment is "change a value on the
+Admin page, press Run, compare". The LangGraph graph itself didn't change in this phase.
+
+**Pieces at work**
+
+| Piece | File | What it does |
+|-------|------|--------------|
+| Settings models | `backend/config.py` | One Pydantic class per `[section]` of `config.toml`; each field has a description, min/max and a label |
+| Form describer | `backend/form_schema.py` | Turns those classes into `{sections: [{fields: [...]}]}` for the UI |
+| Admin API | `backend/routers/admin.py` | `GET` = read the file + schema; `PUT` = validate, write with tomlkit, reload |
+| Hot reload | `get_settings()` in `config.py` | Re-reads the file when its modified-time changes |
+| Admin page | `frontend/src/pages/Admin.tsx` | Draws the form from the schema; polls every 4 s for outside edits |
+| Settings page | `frontend/src/pages/Settings.tsx` | Per-user preferences, saved to SQLite `user_settings` |
+
+**What happens when you change "Number of queries" from 4 to 6 on the Admin page and press Save**
+1. The page sends `PUT /api/admin/config {"changes": {"planner": {"num_queries": 6}}}`.
+2. The backend validates it against `PlannerConfig` (`ge=1, le=10`). 6 is fine; 60 would come back as a field error.
+3. `tomlkit` writes `num_queries = 6` into `settings/config.toml`, keeping your comments.
+4. `force_reload()` refreshes the cached settings.
+5. On the **next run**, the planner calls `get_settings().planner.num_queries` and gets 6.
+6. That run's row stores the snapshot, so the Runs page shows "6 queries" for it.
+
+Editing the file in VS Code instead works the same way from step 4: the file's
+modified-time changes, so the next `get_settings()` call reloads it, and the Admin
+page picks it up on its next 4-second poll.
+
+![Configuration flow](images/config_flow.svg)
+
 ### Think about
 
 **Which settings belong to the system, and which to the user?**
@@ -206,6 +240,112 @@ If yes, it's system config.
 **Built:** a real planner (`ChatPromptTemplate | ChatOpenAI.with_structured_output(ResearchPlan)`),
 a `TraceRecorder` callback handler that records every step into `trace_spans`,
 and the Runs page with a trace tree.
+
+### Workflow walkthrough (Phase 2)
+
+**Outcome in one sentence:** one real LLM-powered node (the planner), wired into
+a working LangGraph loop, with every step recorded and viewable on the Runs page.
+The other nodes are still stubs that return fake data, and the evidence checker
+forces one retry on purpose so you can see the loop.
+
+#### 1. The pipeline as a graph
+
+![Research pipeline](images/pipeline_overview.svg)
+
+- **Boxes = nodes** (Python functions). Only **Planner** is real so far (green).
+- **Plain arrows = edges.** "After this node, always go there."
+- **The diamond = a conditional edge.** Not a node: a small function LangGraph
+  calls *after* the evidence checker to pick the next node by name:
+
+```python
+# backend/graph/workflow.py
+def route_after_check(state: ResearchState) -> str:
+    if state.get("evidence_sufficient"):
+        return "report"                     # "yes" -> left, to Report writer
+    if state.get("retry_count", 0) >= state.get("max_retries", 2):
+        return "report"                     # cap hit -> report anyway
+    return "researcher"                     # "no" -> loop back up
+
+g.add_conditional_edges("evidence_checker", route_after_check,
+                        {"researcher": "researcher", "report": "report"})
+```
+
+In run 8: the first check said "insufficient" (stub), `retry_count` became 1,
+`1 < 2` → **researcher** again; the second check said "sufficient" → **report**.
+
+#### 2. What a node looks like in code
+
+A node is a plain function: **(current state, run config) → dict of only the keys it changes.**
+
+```python
+# backend/agents/planner.py (abridged)
+PLANNER_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", "You are a research librarian … exactly {num_queries} queries …"),
+    ("human",  "Question: {question}"),
+])
+
+def planner_node(state: ResearchState, config: RunnableConfig) -> dict:
+    n = get_settings().planner.num_queries                    # read live from config.toml
+    chain = PLANNER_PROMPT | get_llm().with_structured_output(ResearchPlan)
+    try:
+        plan = chain.invoke({"question": state["question"], "num_queries": n}, config)
+        return {"queries": _clean(plan.queries, n), "rationale": plan.rationale}
+    except Exception as exc:                                  # LLM failed -> degrade, don't crash
+        return {"queries": [state["question"]],
+                "warnings": [f"Planner failed ({type(exc).__name__}); used the question."]}
+```
+
+And how nodes are registered and connected:
+
+```python
+g = StateGraph(ResearchState)              # the state "shape" every node shares
+g.add_node("planner", planner_node)        # name -> function
+g.add_edge(START, "planner")               # plain edge
+g.add_edge("planner", "researcher")
+...
+graph = g.compile()                        # now a Runnable: graph.invoke(state, config)
+```
+
+#### 3. What one node triggers when it runs
+
+![What one node triggers](images/node_lifecycle.svg)
+
+1. **LangGraph calls** `planner_node(state, config)` with the whole current state
+   (`question = "What are the recent approaches … Graph RAG?"`, `retry_count = 0`, …).
+2. **Callback:** `on_chain_start` fires; TraceRecorder inserts a "planner" row in `trace_spans`.
+3. **Settings:** `get_settings()` reads `num_queries = 4` (reloading `config.toml` if it changed).
+4. **The chain runs** with the same `config`, so its steps are traced too:
+5. `ChatPromptTemplate` fills in the system + human messages (about 9 ms).
+6. `ChatOpenAI` makes the **HTTP call to OpenAI**: the messages, `response_format` =
+   the JSON schema of `ResearchPlan`, and `reasoning_effort = "medium"`.
+7. OpenAI replies with a JSON string plus token usage (e.g. 259 in / 183 out, of which 94 reasoning).
+8. Each of those steps sends its own start/end events; the recorder saves spans for
+   the prompt, the LLM call (with tokens) and the two parser steps.
+9. The parser turns the JSON into a `ResearchPlan` object.
+10. The node cleans the queries and **returns** `{"queries": [...], "rationale": "..."}`.
+11. **LangGraph merges** that into the state (other keys untouched); `on_chain_end`
+    saves the span's duration and output.
+12. **LangGraph follows the edge** out of `planner`: a plain edge, so → `researcher`.
+
+You can see all of this for any run: **Runs → click a run → Trace → click `ChatOpenAI`**.
+
+#### 4. The pieces at work in the backend
+
+| Piece | File | Role at runtime |
+|-------|------|-----------------|
+| **Planner node** (the only real LLM node) | `agents/planner.py` | Question → 2–6 focused arXiv queries + rationale (`gpt-6-luna`) |
+| **Structured-output schema** | `models.py` → `ResearchPlan` | Becomes the JSON schema the model must follow; field descriptions act as instructions |
+| **LLM factory** | `llm.py` → `get_llm()` | Builds `ChatOpenAI` from config: `reasoning_effort` for reasoning models, `temperature` only for standard ones |
+| **Graph + router** | `graph/workflow.py` | Nodes, edges and the diamond (`route_after_check`) |
+| **Shared state** | `graph/state.py` → `ResearchState` | The dict every node reads and updates |
+| **TraceRecorder** | `tracing/recorder.py` | Callback handler: every node/chain/LLM call → `trace_spans` |
+| **Run lifecycle** | `routers/runs.py` | Create run row → `graph.invoke(..., config={"callbacks": [recorder]})` → save status, duration, tokens, cost |
+| **Migrations** | `db/sqlite.py` | Version 2 added the run metadata columns and `trace_spans` |
+| **APIs** | `routers/runs.py` | `POST /api/research`, `GET /api/runs`, `/api/runs/{id}`, `/api/runs/{id}/trace` |
+
+#### 5. The whole run, end to end
+
+![What happens when you press Run](images/request_flow.svg)
 
 ### Concepts in one line each
 - **Runnable:** the one interface everything shares: `invoke` (one input),
@@ -326,4 +466,4 @@ Other options are `method="function_calling"` (sent as a tool) and `json_mode`
 ---
 
 ## Phase 3: Tools and tool calling
-_(to fill in)_
+_(to fill in: concepts, workflow walkthrough, experiments, answers)_

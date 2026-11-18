@@ -16,6 +16,11 @@ phase by phase.
   architecture/API sections if they changed.
 - **Update `MD_files/database.md` on every schema change** (new table, column,
   collection field, or store): schema, status (live/planned) and its change log.
+- **Every phase gets a "Workflow walkthrough" in `MD_files/learning_notes.md`**
+  (written by Claude, not the user): outcome in one sentence, the graph picture
+  with what changed, what the new/changed node looks like in code, what it
+  triggers step by step (with real run examples), and a "pieces at work" table.
+  Diagrams are SVG images in `MD_files/images/` (VS Code doesn't render Mermaid).
 - **When a phase is finished**, write `MD_files/build_phases/phase_NN_<name>.md`
   (built, DB changes, tests, decisions, issues) and mark it ✅ in `build_plan.md`.
 - **Run and test only in Docker** (`docker compose up -d --build`). Milvus Lite
@@ -210,3 +215,7 @@ API: `GET /api/health` (incl. schema_version), `GET /api/config`, `GET/PUT /api/
 - **2026-11-18**: Populated `README.md` (overview, status, features, screenshots,
   stack, quick start, configuration, how it works with diagrams, structure, roadmap,
   docs index, data sources). Screenshots in `MD_files/images/screenshots/`.
+- **2026-11-18**: Added a Workflow walkthrough for Phases 1 and 2 to `learning_notes.md`
+  (node code, step-by-step trigger flow, pieces at work) + `images/node_lifecycle.svg`;
+  the pipeline image now draws the conditional edge as a diamond. Walkthroughs are now a
+  per-phase rule.

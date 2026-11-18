@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4E4B46"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6F8572"/>
+    </marker>
+  </defs>
+  <rect width="960" height="640" rx="14" fill="#F5F4F1"/>
+  <text x="30" y="40" font-size="20" font-weight="600" fill="#2A2A28">What one node triggers: the planner, step by step</text>
+  <text x="30" y="62" font-size="13" fill="#6E6A63">Grey arrows = function calls and data. Green = callback events recorded by TraceRecorder into trace_spans.</text>
+
+  <g font-size="13" font-weight="600" fill="#2A2A28" text-anchor="middle">
+    <rect x="40" y="82" width="140" height="40" rx="8" fill="#ECEBE7" stroke="#D4D0C9"/><text x="110" y="107">LangGraph runtime</text>
+    <rect x="250" y="82" width="140" height="40" rx="8" fill="#DDE3DC" stroke="#6F8572"/><text x="320" y="107">planner_node()</text>
+    <rect x="460" y="82" width="140" height="40" rx="8" fill="#ECEBE7" stroke="#D4D0C9"/><text x="530" y="107">plan_queries chain</text>
+    <rect x="650" y="82" width="120" height="40" rx="8" fill="#ECEBE7" stroke="#D4D0C9"/><text x="710" y="107">OpenAI API</text>
+    <rect x="800" y="82" width="140" height="40" rx="8" fill="#ECEBE7" stroke="#6F8572"/><text x="870" y="107">TraceRecorder</text>
+  </g>
+  <g stroke="#D4D0C9" stroke-width="1.5" stroke-dasharray="4 4">
+    <line x1="110" y1="122" x2="110" y2="600"/><line x1="320" y1="122" x2="320" y2="600"/>
+    <line x1="530" y1="122" x2="530" y2="600"/><line x1="710" y1="122" x2="710" y2="600"/>
+    <line x1="870" y1="122" x2="870" y2="600"/>
+  </g>
+
+  <g font-size="12" fill="#2A2A28">
+    <!-- 1 -->
+    <line x1="110" y1="158" x2="316" y2="158" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="120" y="151">① call planner_node(state, config)</text>
+    <!-- 2 -->
+    <line x1="110" y1="190" x2="866" y2="190" stroke="#6F8572" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#g)"/>
+    <text x="340" y="183" fill="#4E5F51">② on_chain_start("planner") → span row inserted</text>
+    <!-- 3 -->
+    <rect x="262" y="204" width="116" height="34" rx="6" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="320" y="219" text-anchor="middle" font-size="11">③ get_settings()</text>
+    <text x="320" y="232" text-anchor="middle" font-size="11" fill="#6E6A63">num_queries = 4</text>
+    <!-- 4 -->
+    <line x1="320" y1="262" x2="526" y2="262" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="330" y="255">④ chain.invoke(inputs, config)</text>
+    <!-- 5 -->
+    <rect x="462" y="276" width="136" height="34" rx="6" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="530" y="291" text-anchor="middle" font-size="11">⑤ prompt template</text>
+    <text x="530" y="304" text-anchor="middle" font-size="11" fill="#6E6A63">→ system + human msg</text>
+    <!-- 6 -->
+    <line x1="530" y1="334" x2="706" y2="334" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="540" y="327">⑥ HTTP: messages + schema</text>
+    <!-- 7 -->
+    <line x1="710" y1="368" x2="534" y2="368" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="545" y="361">⑦ JSON reply + tokens</text>
+    <!-- 8 -->
+    <line x1="530" y1="400" x2="866" y2="400" stroke="#6F8572" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#g)"/>
+    <text x="545" y="393" fill="#4E5F51">⑧ spans: prompt, LLM (tokens), parser</text>
+    <!-- 9 -->
+    <line x1="530" y1="434" x2="324" y2="434" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="335" y="427">⑨ ResearchPlan object</text>
+    <!-- 10 -->
+    <line x1="320" y1="468" x2="114" y2="468" stroke="#4E4B46" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="125" y="461">⑩ return {queries, rationale}</text>
+    <!-- 11 -->
+    <rect x="44" y="482" width="132" height="34" rx="6" fill="#FFFFFF" stroke="#D4D0C9"/>
+    <text x="110" y="497" text-anchor="middle" font-size="11">⑪ merge into state</text>
+    <text x="110" y="510" text-anchor="middle" font-size="11" fill="#6E6A63">other keys untouched</text>
+    <line x1="110" y1="534" x2="866" y2="534" stroke="#6F8572" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#g)"/>
+    <text x="340" y="527" fill="#4E5F51">on_chain_end("planner") → duration + output saved</text>
+    <!-- 12 -->
+    <rect x="44" y="552" width="132" height="34" rx="6" fill="#DDE3DC" stroke="#6F8572"/>
+    <text x="110" y="567" text-anchor="middle" font-size="11">⑫ follow the edge</text>
+    <text x="110" y="580" text-anchor="middle" font-size="11" fill="#4E5F51">→ researcher node</text>
+  </g>
+</svg>

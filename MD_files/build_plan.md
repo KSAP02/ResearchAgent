@@ -419,7 +419,9 @@ ways.
 2. Add deps to the root `requirements.txt` / `frontend/package.json`.
 3. Expose new tunables in `settings/config.toml` (they show up on the Admin page automatically).
 4. `docker compose up -d --build` → health → end-to-end run → restart/persistence.
-5. Run the phase's experiment; write findings in `MD_files/learning_notes.md`.
+5. Run the phase's experiment; write findings, answers and a **Workflow walkthrough**
+   (outcome, graph picture, node code, step-by-step trigger flow with real run examples,
+   pieces-at-work table, SVG diagrams) in `MD_files/learning_notes.md`.
 6. Update `CLAUDE.md` (progress + changelog) and `project_scaffold.md` if the scaffold changed.
 7. Commit and push to `origin/main`.
 
