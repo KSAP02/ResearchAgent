@@ -42,9 +42,11 @@ flowchart LR
 
 How to read it:
 - **Boxes are nodes.** Each is a Python function `(state, config) -> partial update`.
-- **Arrows are edges.** Plain edges always go to the next node; the diamond is a
-  **conditional edge**: `route_after_check()` looks at the state and returns the
-  name of the next node.
+- **Arrows are edges.** Plain edges always go to the next node. The **diamond**
+  (after *Evidence checker*) is a **conditional edge**: not a node but a plain
+  function, `route_after_check(state)`, that LangGraph calls after the evidence
+  checker finishes. It returns the *name* of the next node: `"researcher"` (the
+  "no" branch, back up) or `"report"` (the "yes" branch, left).
 - **The arrow back to `researcher` is the cycle.** It's what a plain chain can't do.
   `retry_count` and `max_retries` in the state stop it from looping forever.
 
