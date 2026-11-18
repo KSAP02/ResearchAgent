@@ -207,3 +207,6 @@ API: `GET /api/health` (incl. schema_version), `GET /api/config`, `GET/PUT /api/
   (was `config/config.toml`). Updated `CONFIG_PATH` default, Dockerfile (`COPY settings/`),
   compose mount `./settings:/app/settings`, and all docs. Added data-flow diagrams to
   `learning_notes.md`.
+- **2026-11-18**: Populated `README.md` (overview, status, features, screenshots,
+  stack, quick start, configuration, how it works with diagrams, structure, roadmap,
+  docs index, data sources). Screenshots in `MD_files/images/screenshots/`.
